@@ -11,8 +11,8 @@ uses
 const
   MaxPoints=100;
   PointPerInt=50;
-  MaxParameters=8;    // Максимальное число параметров
-  MaxRepeat=100;      // Максимальное число повторов
+  //MaxParameters=8;    // Максимальное число параметров
+
 
   {  Mobility                         [ m**2/V*s ]     ;
       Magnetic Field                   [ Tesla ]        ;
@@ -21,6 +21,7 @@ const
       All other values in SI                             ;   }
   type
     Data_spektr=array [0..MaxPoints] of extended;
+    PData_spektr=^Data_spektr;
 
     ImageDat=array [0..(PointPerInt-1)*PointPerInt] of extended;
   PImageDat=^ImageDat;  // указатель на массив из двух элементов.
@@ -28,6 +29,8 @@ const
   Dat1=array[1..MaxPoints] of extended;
   Dat2=array[1..MaxPoints,1..MaxPoints] of extended;
   Dat3=array[1..MaxPoints,1..2*MaxPoints] of extended;
+
+
 
   var
     /////////////// спектр подвижности///////////
@@ -56,9 +59,54 @@ const
   with your DLL. To avoid using BORLNDMM.DLL, pass string information
   using PChar or ShortString parameters. }
 
+
+
   ////////////////////////////////////////////////////////////////////////////
 /////////////////////// НАЧАЛО "ХОЛЛ. ПОДВИЖНОСТЬ" /////////////////////////
 ////////////////////////////////////////////////////////////////////////////
+
+
+
+
+  // Выделение памяти нужно будет перенести в инициализацию разумеется.
+procedure InitArray;
+begin
+   if IntMagField<>nil then freemem(IntMagField);
+   getmem(IntMagfield,SizeData);
+   if IntGxx<>nil then freemem(IntGxx);
+   getmem(IntGxx,SizeData);
+   if IntGxy<>nil then freemem(IntGxy);
+   getmem(IntGxy,SizeData);
+end;
+
+procedure InitArray2;
+begin
+  if Spectr_e<>nil then freemem(Spectr_e);
+   getmem(Spectr_e,SizeData);
+   if Spectr_P<>nil then freemem(Spectr_P);
+   getmem(Spectr_P,SizeData);
+   if Mobility<>nil then freemem(Mobility);
+   getmem(Mobility,SizeData);
+end;
+
+// В общем это освобождение памяти, и его надо бы перетащить в другое место.
+// И разумеется это старьё надо переделать на нормальные динамические массивы:).
+procedure FormDestroy(Sender: TObject);
+begin
+if IntMagField<>nil then freemem(IntMagField);
+   if IntGxx<>nil then freemem(IntGxx);
+   if IntGxy<>nil then freemem(IntGxy);
+   if Spectr_e<>nil then freemem(Spectr_e);
+   if Spectr_P<>nil then freemem(Spectr_P);
+   if Mobility<>nil then freemem(Mobility);
+   if Axx<>nil then freemem(Axx);
+   if Axy<>nil then freemem(Axy);
+   if Axx_d<>nil then freemem(Axx_d);
+   if Axy_d<>nil then freemem(Axy_d);
+end;
+
+
+
 
 procedure GetCoef(var A,X:Data_spektr; b:extended;var P0,P1,P2:extended);
 var i,j:word;
@@ -168,7 +216,10 @@ begin
 end;
 
 
-
+// Эта функция также нужна разве что мне для справки, т.к. вывод на график будет
+// в основной программе.
+// Или нет, не совсем понятно - возможно программа использует построенные графики
+// для дальнейших расчетов, что тоже не совсем правильно.
 procedure AddExpPoints(Chart5:TChart;Chart6:TChart);
 var i:word;
 begin
@@ -206,25 +257,8 @@ begin
     if frac(f)>0.001 then Xmax:=Xmax+1;
 end;
 
-procedure InitArray;
-begin
-   if IntMagField<>nil then freemem(IntMagField);
-   getmem(IntMagfield,SizeData);
-   if IntGxx<>nil then freemem(IntGxx);
-   getmem(IntGxx,SizeData);
-   if IntGxy<>nil then freemem(IntGxy);
-   getmem(IntGxy,SizeData);
-end;
 
-procedure InitArray2;
-begin
-  if Spectr_e<>nil then freemem(Spectr_e);
-   getmem(Spectr_e,SizeData);
-   if Spectr_P<>nil then freemem(Spectr_P);
-   getmem(Spectr_P,SizeData);
-   if Mobility<>nil then freemem(Mobility);
-   getmem(Mobility,SizeData);
-end;
+
 
 procedure MakeInterpolate(Chart5:TChart;Chart6:TChart);
 var temp_l,temp_t,AGxx,AGxy,AField:Data_spektr;
@@ -884,84 +918,58 @@ end;
       // Загрузка данных из файла
 procedure btnLoadTenzorClick(OpenDialog2:TOpenDialog;Series5:TPointSeries;
 LineSeries1:TLineSeries);
-//var  i:word;
+
+//MagField_spektr[i],GxxExp[i],GxyExp[i]
+// Это поле, продольная и поперечная компоненты тензора проводимости.
+// Вот в эти три массива нужно записать входные данные.
+
+
 begin
   {
- OpenDialog2.Title:='Открытие файла с компонентами тензора проводимости';
- if OpenDialog2.Execute then
- begin
-     Series5.Clear;
-     LineSeries1.Clear;   {чистим графики моя вставка}
-    // AssignFile(Data_File, OpenDialog2.FileName);  {открываем файл}
-    // ReplacementOfSeparator;  // заменяем запятые на точки
-   { try    // обработка ошиок
-      Reset(Data_File);   // чистим прошлые данные
-      i:=0;
-      while not(eof(Data_File)) do  // до конца файла
-      begin
-       try     // обработка ошиок
-        readln(Data_File,MagField_spektr[i],GxxExp[i],GxyExp[i]); // кушаем входные данные
-        inc(i);
-       except
-         on EInOutError do
-          begin
-           MessageDlg('File I/O error.', mtError, [mbOk], 0);
-           break;
-          end;
-       end;
-      end;
-      if i>=MaxPoints then
-       begin
-        MessageDlg('Число элементов превышает максимально допустимое!',mtError,
-            [mbOK],0);
-        i:=MaxPoints;
-       end;
-       dec(i);
-      NumberOfPoints:=i; // количество точек - 10
-      CloseFile(Data_File); // забываем про файл
-    except
-      on EInOutError do
-       begin
-        MessageDlg('File I/O error.', mtError, [mbOk], 0);
-       end;
-    end;
-
-   Label22.Caption:=OpenDialog2.FileName;
    MakeMNK(true);
    MobilitySpectrumFunc;  // спектр подвижности. Начало.
  end;     }
 end;
 
 
+    {
+      Итак, по сути, здесь происходит тыканье значений максимумов и
+      отображение их в таблице под графиком спектра подвижности.
+      Т.е. по факту этот код будет уже на сях и здесь он не нужен.
+      В комментарии его.
+
+
+      }
 procedure chtSpectrClickSeries(chtSpectr: TCustomChart;
   Series: TChartSeries; ValueIndex: Integer;
   Shift: TShiftState; X, Y: Integer; Series5:TCustomSeries;
   LineSeries1:TLineSeries; StringGrid3:TStringGrid;RowInFocus:Integer);
-var Mu,G_e,G_p,con_p,con_e:extended;
-      Ind, Ind2:longint;
+//var Mu,G_e,G_p,con_p,con_e:extended;
+ //     Ind, Ind2:longint;
+
 
 begin
-
+    {
 with chtSpectr do
    begin
 
     ind:=Series5.GetCursorValueIndex;
     Ind2:= LineSeries1.GetCursorValueIndex;
     if ind<>-1 then
-      begin
-       G_p:=Series5.YValue[ind];
-       Mu:=Series5.XValue[ind];
-       con_p:=g_p/(mu*1.602e-19);
-       StringGrid3.Cells[1,RowInFocus]:=FloatToStr(con_p);
+      begin                 // это по дыркам.
+       G_p:=Series5.YValue[ind]; // наверное проводимость
+       Mu:=Series5.XValue[ind];  // подвижность
+       con_p:=g_p/(mu*1.602e-19); // концентрация
+       StringGrid3.Cells[1,RowInFocus]:=FloatToStr(con_p); // показываем выбранные результаты
        StringGrid3.Cells[2,RowInFocus]:=FloatToStr(Mu);
        if RowInFocus<3 then
-         Inc(RowInFocus)
+         Inc(RowInFocus) // и да, переключаем фокус таблицы
        else
          RowInFocus:=1;
       end;
       if ind2<>-1 then
       begin
-       G_e:=LineSeries1.YValue[ind2];
+       G_e:=LineSeries1.YValue[ind2]; // это по электронам
        Mu:=Series5.XValue[ind2];
        con_e:=g_e/(mu*1.602e-19);
        StringGrid3.Cells[1,RowInFocus]:=FloatToStr(-con_e);
@@ -971,24 +979,13 @@ with chtSpectr do
        else
          RowInFocus:=1;
       end;
-   end;
+   end;   }
 
 end;
 
-procedure FormDestroy(Sender: TObject);
-begin
-if IntMagField<>nil then freemem(IntMagField);
-   if IntGxx<>nil then freemem(IntGxx);
-   if IntGxy<>nil then freemem(IntGxy);
-   if Spectr_e<>nil then freemem(Spectr_e);
-   if Spectr_P<>nil then freemem(Spectr_P);
-   if Mobility<>nil then freemem(Mobility);
-   if Axx<>nil then freemem(Axx);
-   if Axy<>nil then freemem(Axy);
-   if Axx_d<>nil then freemem(Axx_d);
-   if Axy_d<>nil then freemem(Axy_d);
-end;
 
+   // управление фокусом таблицы, особо без надобности.
+   {
 procedure SetGridFocus(SGrid,StringGrid3: TStringGrid; r:integer);
 var
  Cell_Focus:TGridRect;
@@ -999,21 +996,15 @@ begin
   Cell_Focus.Left:=0;
   Cell_Focus.Right:=3;
   StringGrid3.Selection:=Cell_Focus;
-end;
-
+end;       }
+    {
 procedure chtSpectrMouseMove(Sender: TObject; Shift: TShiftState; X,
   Y,RowInFocus: Integer;StringGrid3,SGrid: TStringGrid);
 begin
   SetGridFocus(StringGrid3,SGrid,RowInFocus);  // Ахтунг! Странное использование функции!
 end;
+        }
 
-procedure btnClearSpectrTableClick(Sender: TObject;StringGrid3: TStringGrid);
-var i,j:integer;
-begin
-  for i:=1 to StringGrid3.RowCount-1 do
-  for j:=1 to StringGrid3.ColCount-1 do
-  StringGrid3.Cells[j,i]:='';
-end;
 
 procedure LoadSpektrResults;//Загружает результаты Спектра подвижности
 var i:Integer;
@@ -1072,7 +1063,8 @@ begin
   end; }
 end;
 
-procedure WriteSpektrResults;// Запись результатов Спектра подвижности
+// Запись результатов Спектра подвижности
+procedure WriteSpektrResults;
 var i:Integer;
 begin
   {
@@ -1110,37 +1102,53 @@ begin
     WriteSpektrResults;
   end;}
 end;
-  {
+
 procedure StringGrid3SelectCell(Sender: TObject; ACol,
   ARow: Integer; var CanSelect: Boolean;StringGrid3:TStringGrid);
 begin
- StringGrid3.RowInFocus:=ARow;
-end;    }
+ //StringGrid3.RowInFocus:=ARow;
+end;    
 
 ////////////////////////////////////////////////////////////////////////////
 /////////////////////// КОНЕЦ "ХОЛЛ. ПОДВИЖНОСТЬ"///////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
+// входные параметры есть, надо подумать что мы возвращаем, где оно хранится
+// и как мы это будем возвращать.
+procedure RunMobilitySpectrum (MagneticFieldP,Exx,Exy: PData_spektr);
+begin
+  ;
+end;  
+
+
+{
+Как я понял, для построения спектра подвижности нужно:
+
+Вызвать MakeMNK(true)
+и  MobilitySpectrumFunc;
+
+}
+
 exports
 
-MobilitySpectrumFunc;
-
+RunMobilitySpectrum;
 
 begin
+     // Картина такая:
+     // Надо выделить память.
+     // Получить входные данные и сохранить их в нужные массивы.
+     // Вызвать две заветные функции.
+     // И отдать результаты.
 end.
+
 
 
 {
 
 unit UnitMain;
 
-interface
 
-uses
-  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, Grids, Clipbrd, Buttons, StdCtrls, StrUtils, ExtCtrls, Menus,
-  CheckLst, Math, ComCtrls, Series, TeEngine, TeeProcs, Chart, Optim1,
-  Gauges;
+
 const
     EKT=150.574; {77} // используется в ФМЭ
 {    EKT=136.4; {85}
