@@ -7,6 +7,29 @@ uses
 
   // optim1
 
+  {
+  LineSeries1
+  Series5
+
+  Это то, куда выводятся спектры подвижности (электроны и дырки соотв.)
+
+  Gxx
+  Gxy
+
+  Это графики расчитанных тензоров проводимости
+
+  ExpXX
+  ExpXY
+
+  Экспериментальные значения компонент тензора проводимости
+
+
+  Chart5 и Chart6 - в них лежат графики компонент тензора проводимости.
+
+  }
+
+
+
 {$R *.res}
 const
   MaxPoints=100;
@@ -20,11 +43,11 @@ const
       Surface Recombination Velocity   [ m/s ]          ;
       All other values in SI                             ;   }
   type
-    Data_spektr=array [0..MaxPoints] of extended;
-    PData_spektr=^Data_spektr;
+    Data_spektr=array of extended;
+    
 
-    ImageDat=array [0..(PointPerInt-1)*PointPerInt] of extended;
-  PImageDat=^ImageDat;  // указатель на массив из двух элементов.
+    ImageDat=array of extended;
+  PImageDat=^ImageDat;
   mat=array[0..MaxPoints,0..MaxPoints] of extended;
   Dat1=array[1..MaxPoints] of extended;
   Dat2=array[1..MaxPoints,1..MaxPoints] of extended;
@@ -38,8 +61,7 @@ const
   MagField_spektr,Gxx,Gxy,GxxExp,GxyExp  :Data_spektr;
   IntGxx,IntGxy,IntMagField,Spectr_e,Spectr_p,Mobility,
   QSpectr_e,QSpectr_p,Axx,Axy,Axx_d,Axy_d,
-  dIntGxx,dIntGxy,QGxx,QGxy,dQGxx,dQGxy  :PImageDat;
-  //Peak_e,Peak_p,Valley_e,Valley_p        :PImageDat3;
+  dIntGxx,dIntGxy,QGxx,QGxy,dQGxx,dQGxy  :ImageDat;
   SizeData                               :longint;
   B_spektr,Gxx_sp,Gxx_MC,Gxy_MC,
   Gxy_sp,Xr,Lv,Xv,Mv,Vpr                 :Dat1;
@@ -68,41 +90,25 @@ const
 
 
 
-  // Выделение памяти нужно будет перенести в инициализацию разумеется.
-procedure InitArray;
-begin
-   if IntMagField<>nil then freemem(IntMagField);
-   getmem(IntMagfield,SizeData);
-   if IntGxx<>nil then freemem(IntGxx);
-   getmem(IntGxx,SizeData);
-   if IntGxy<>nil then freemem(IntGxy);
-   getmem(IntGxy,SizeData);
-end;
-
-procedure InitArray2;
-begin
-  if Spectr_e<>nil then freemem(Spectr_e);
-   getmem(Spectr_e,SizeData);
-   if Spectr_P<>nil then freemem(Spectr_P);
-   getmem(Spectr_P,SizeData);
-   if Mobility<>nil then freemem(Mobility);
-   getmem(Mobility,SizeData);
-end;
+ 
 
 // В общем это освобождение памяти, и его надо бы перетащить в другое место.
 // И разумеется это старьё надо переделать на нормальные динамические массивы:).
-procedure FormDestroy(Sender: TObject);
+procedure ProcDLL(Reason: Integer);
 begin
-if IntMagField<>nil then freemem(IntMagField);
-   if IntGxx<>nil then freemem(IntGxx);
-   if IntGxy<>nil then freemem(IntGxy);
-   if Spectr_e<>nil then freemem(Spectr_e);
-   if Spectr_P<>nil then freemem(Spectr_P);
-   if Mobility<>nil then freemem(Mobility);
-   if Axx<>nil then freemem(Axx);
-   if Axy<>nil then freemem(Axy);
-   if Axx_d<>nil then freemem(Axx_d);
-   if Axy_d<>nil then freemem(Axy_d);
+  if Reason = DLL_PROCESS_DETACH then
+  begin
+    IntMagField:=nil;
+    IntGxx:=nil;
+    IntGxy:=nil;
+    Spectr_e:=nil;
+    Spectr_p:=nil;
+    Mobility:=nil;
+    Axx:=nil;
+    Axy:=nil;
+    Axx_d:=nil;
+    Axy_d:=nil;
+  end;
 end;
 
 
@@ -174,6 +180,8 @@ begin
     end;  }
 end;
 
+
+{
 procedure Addpoints(Chart:TChart);
 //var sf:extended;
 begin
@@ -188,7 +196,7 @@ begin
         if (Series[0].MinXValue-sf)>0 then Minimum:=Series[0].MinXValue-sf
             else Minimum:=0.0005;
 
-       Maximum:=Series[0].MaxXValue+sf;      }
+       Maximum:=Series[0].MaxXValue+sf;
       end;
      with LeftAxis do
       begin
@@ -210,20 +218,21 @@ begin
                                         else
                                 Minimum:=Series[0].MinYValue*0.95;
          Maximum:=Series[0].MaxYValue+sf;
-        end;                                  }
+        end;
       end;
      end;
-end;
+end;  }
 
 
 // Эта функция также нужна разве что мне для справки, т.к. вывод на график будет
 // в основной программе.
 // Или нет, не совсем понятно - возможно программа использует построенные графики
 // для дальнейших расчетов, что тоже не совсем правильно.
-procedure AddExpPoints(Chart5:TChart;Chart6:TChart);
+// строит экспериментальные точки на графиках компонент тензора
+procedure AddExpPoints(ExpXX:TPointSeries;ExpXY:TPointSeries);
 var i:word;
 begin
- with Chart5.Series[1] as TPointSeries do
+ with ExpXX as TPointSeries do
   begin
    Clear;
    Pointer.HorizSize:=2;
@@ -232,7 +241,7 @@ begin
     if MagField_spektr[i]=0 then AddXY(0.001,GxxExp[i],'',clTeeColor)
      else AddXY(MagField_spektr[i],GxxExp[i],'',clTeeColor);
    end;
-  with Chart6.Series[1] as TPointSeries do
+  with ExpXY as TPointSeries do
    begin
     Clear;
     Pointer.HorizSize:=2;
@@ -260,7 +269,7 @@ end;
 
 
 
-procedure MakeInterpolate(Chart5:TChart;Chart6:TChart);
+procedure MakeInterpolate(Gxx:TLineSeries;Gxy:TLineSeries;ExpXX,ExpXY:TPointSeries);
 var temp_l,temp_t,AGxx,AGxy,AField:Data_spektr;
     sf,lm,p,p1:extended;
     i,j:word;
@@ -270,7 +279,9 @@ var i,j,m:word;
     K:Data_spektr;
     A,B,R:extended;
 begin
-   K[1]:=0;C[1]:=P1;
+   SetLength(K,SizeData);
+   K[1]:=0;
+   C[1]:=P1;
    A:=X[1]-X[0];
    B:=X[2]-X[1];
    k[2]:=(3*((F[2]-F[1])/(X[2]-X[1])-(F[1]-F[0])/(X[1]-X[0]))-
@@ -320,18 +331,14 @@ begin
    cs(MagField_spektr,GxxExp,temp_l,A1,An);
    cs(MagField_spektr,GxyExp,temp_t,B1,Bn);
 
-   AddExpPoints(Chart5,Chart6);
-   With Chart5 do
-    begin
-     Series[0].Clear;
-    end;
-   with Chart6 do
-    begin
-     Series[0].Clear;
-    end;
+   AddExpPoints(ExpXX,ExpXY);
+
+   Gxx.Clear;
+   Gxy.Clear;
+
    GetLnLimits(Lmin,Lmax);
-   SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
-   InitArray;
+   //SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
+   //InitArray; --------------------------------------------------------------------
    k:=0;
    for i:=0 to (lmax-lmin) do
     begin
@@ -339,19 +346,19 @@ begin
      sf:=lm;
      for j:=1 to PointPerInt-1 do
       begin
-       IntMagField^[k]:=sf;
-       IntGxx^[k]:=sp(MagField_spektr,GxxExp,temp_l,sf);
-       IntGxy^[k]:=sp(MagField_spektr,GxyExp,temp_t,sf);
-       Chart5.Series[0].AddXY(IntMagField^[k],IntGxx^[k],'',clTeeColor);
-       Chart6.Series[0].AddXY(IntMagField^[k],IntGxy^[k],'',clTeeColor);
+       IntMagField[k]:=sf;
+       IntGxx[k]:=sp(MagField_spektr,GxxExp,temp_l,sf);
+       IntGxy[k]:=sp(MagField_spektr,GxyExp,temp_t,sf);
+       Gxx.AddXY(IntMagField[k],IntGxx[k],'',clTeeColor);
+       Gxy.AddXY(IntMagField[k],IntGxy[k],'',clTeeColor);
        sf:=lm*exp(j/PointPerInt*ln(10));
        if sf>MagField_spektr[NumberofPoints] then break;
        inc(k);
       end;
      if sf>MagField_spektr[NumberofPoints] then break;
     end;
-   AddPoints(Chart5);
-   AddPoints(Chart6);
+   //AddPoints(Chart5);
+   //AddPoints(Chart6);
 end;
 
 
@@ -370,7 +377,7 @@ procedure GetNoise(var a,b:Data_spektr;err:extended);
    end;
  end;
 
-procedure MakeMNK( a:boolean;Chart5:TChart;Chart6:TChart);
+procedure MakeMNK( a:boolean;Gxx:TLineSeries;Gxy:TLineSeries;ExpXX,ExpXY:TPointSeries);
 var tmp_m:mat;
     coef_t,coef_l:Data_spektr;
     kind,i,j,k,Lmin,Lmax:integer;
@@ -379,9 +386,6 @@ var tmp_m:mat;
  var p:extended;
      i:word;
   begin
-  {if x>0 then
-   p:=exp(y*ln(x))
-         else  p:=1;}
    p:=1;
    for i:=1 to y do p:=p*x;
    pow:=p;
@@ -457,20 +461,17 @@ begin
    gauss(Power_spektr,tmp_m,coef_l);
    gram(NumberOfPoints,Power_spektr,Kind,MagField_spektr,GxyExp,tmp_m);
    gauss(Power_spektr,tmp_m,coef_t);
-   With Chart5 do
-    begin
-     Series[0].Clear; // чистим графики компонент
-    end;
-   with Chart6 do
-    begin
-     Series[0].Clear;
-    end;
+
+   Gxx.Clear; // чистим графики компонент
+   Gxy.Clear;
+   
+
    if a then
      begin
-      AddExpPoints(Chart5,Chart6); // добавляет точки на график, не логарифмически
-      GetLnLimits(Lmin,Lmax); // получает пределы, логарифмические
-      SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat); // считаем размер данных
-      InitArray;  // выделяем его
+      AddExpPoints(ExpXX,ExpXY); // добавляет точки на график, экспериментальные
+      //GetLnLimits(Lmin,Lmax); // получает пределы, логарифмические
+      //SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat); // считаем размер данных
+      //InitArray;  // выделяем его---------------------------------------------------------------
       k:=0;
       for i:=0 to (lmax-lmin) do
        begin
@@ -478,26 +479,26 @@ begin
        sf:=lm;
        for j:=1 to PointPerInt-1 do
         begin
-        IntMagField^[k]:=sf;
-{        IntGxxExp^[k]:=fi(Power,coef_l,sf);
-        IntGxyExp^[k]:=fi(Power,coef_t,sf);}
+        IntMagField[k]:=sf;
+{        IntGxxExp[k]:=fi(Power,coef_l,sf);
+        IntGxyExp[k]:=fi(Power,coef_t,sf);}
         // а тут происходит самое страшное - считаются два основных графика
-        fi(NumberOfPoints,Power_spektr,Kind,coef_l,MagField_spektr,sf,IntGxx^[k]);
-        fi(NumberOfPoints,Power_spektr,Kind,coef_t,MagField_spektr,sf,IntGxy^[k]);
+        fi(NumberOfPoints,Power_spektr,Kind,coef_l,MagField_spektr,sf,IntGxx[k]);
+        fi(NumberOfPoints,Power_spektr,Kind,coef_t,MagField_spektr,sf,IntGxy[k]);
         // и судя по всему ось х - действительно подвижность
         // а ось у - это величины компонент тензора проводимости
         // но они как-то модифицированы
         // видимо в предыдущей функции, надо уточнить
-        Chart5.Series[0].AddXY(IntMagField^[k],IntGxx^[k],'',clTeeColor);
-        Chart6.Series[0].AddXY(IntMagField^[k],IntGxy^[k],'',clTeeColor);
+        Gxx.AddXY(IntMagField[k],IntGxx[k],'',clTeeColor);
+        Gxy.AddXY(IntMagField[k],IntGxy[k],'',clTeeColor);
         sf:=lm*exp(j/PointPerInt*ln(10));
         if sf>MagField_spektr[NumberofPoints] then break;
         inc(k);
        end;
       if sf>MagField_spektr[NumberofPoints] then break;
      end;
-     AddPoints(Chart5);
-     AddPoints(Chart6);
+     //AddPoints(Chart5);
+     //AddPoints(Chart6);
     end else
     begin
      for i:=0 to NumberOfPoints do
@@ -838,7 +839,7 @@ function S_s(Mi:extended):extended;
 /////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
-procedure MobilitySpectrumFunc(chtSpectr:TChart);
+procedure MobilitySpectrumFunc(LineSeries1,Series5:TLineSeries);
 var
   Sf,lm:extended;
   j,k,i:word;
@@ -875,14 +876,12 @@ begin
     // интересно что это за числа ниже?
     Tred2(NumberOfPoints,6e-4913,Lv,Xv,am,Qm,bulua);
     Imtql2(NumberOfPoints,5.42e-20,Lv,Xv,Qm,bulua);
-   with chtSpectr do
-    begin
-     Series[0].Clear;
-     Series[1].Clear;
-    end;
+
+     LineSeries1.Clear;
+     Series5.Clear;
    Lmin:=MSLeft;LMax:=MSRight;
    SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
-   InitArray2;
+   //InitArray2;
    k:=0;
    for i:=0 to (lmax-lmin) do
     begin
@@ -890,11 +889,11 @@ begin
      sf:=lm;
      for j:=1 to PointPerInt-1 do
       begin
-       Mobility^[k]:=sf;
-       Spectr_e^[k]:=S_s(-sf);
-       Spectr_p^[k]:=S_s(sf);
-       chtSpectr.Series[0].AddXY(Mobility^[k],Spectr_e^[k],'',clTeeColor);
-       chtSpectr.Series[1].AddXY(Mobility^[k],Spectr_p^[k],'',clTeeColor);
+       Mobility[k]:=sf;
+       Spectr_e[k]:=S_s(-sf);
+       Spectr_p[k]:=S_s(sf);
+       LineSeries1.AddXY(Mobility[k],Spectr_e[k],'',clTeeColor);
+       Series5.AddXY(Mobility[k],Spectr_p[k],'',clTeeColor);
        sf:=lm*exp(j/PointPerInt*ln(10));
        inc(k);
        if sf>10 then break;
@@ -912,7 +911,7 @@ var i:word;
 begin
   Result:=0;
   for i:=0 to gridPoints do
-   result:=result+Axx^[i]*(QSpectr_p^[i]+QSpectr_e^[i]);
+   result:=result+Axx[i]*(QSpectr_p[i]+QSpectr_e[i]);
 end;
 
       // Загрузка данных из файла
@@ -1007,8 +1006,8 @@ end;
 
 
 procedure LoadSpektrResults;//Загружает результаты Спектра подвижности
-var i:Integer;
-   con, mob:Extended;
+//var i:Integer;
+//   con, mob:Extended;
 begin
   {
   con:=0;
@@ -1052,20 +1051,27 @@ begin
 end;
 
 
+// Загрузка результатов спектра подвижности
+// Тут от неё толку нет.
+{
 procedure btnSpectrResultClick(Sender: TObject);
 begin
-  {
+  
   if ODSpektrRes.Execute then
   begin
      AssignFile(Data_File, ODSpektrRes.FileName);
      ReplacementOfSeparator;
      LoadSpektrResults;
-  end; }
-end;
+  end;
+end;  }
 
 // Запись результатов Спектра подвижности
+// Количество точек
+// Минимумы и максимумы по носителям зарядов
+// И дальше неизвестно что:)
+// Но нам надо то, что оно выводило на графики.
 procedure WriteSpektrResults;
-var i:Integer;
+//var i:Integer;
 begin
   {
 {$I-}
@@ -1113,11 +1119,32 @@ end;
 /////////////////////// КОНЕЦ "ХОЛЛ. ПОДВИЖНОСТЬ"///////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
+
 // входные параметры есть, надо подумать что мы возвращаем, где оно хранится
 // и как мы это будем возвращать.
-procedure RunMobilitySpectrum (MagneticFieldP,Exx,Exy: PData_spektr);
+procedure RunMobilitySpectrum (MagneticFieldP,Exx,Exy: Data_spektr; size:Integer);
+var i:Integer;
+Gxx,Gxy:TLineSeries;
+ExpXX,ExpXY:TPointSeries;
+electronMobilitySpectrum,holeMobilitySpectrum:TLineSeries;
 begin
-  ;
+  for i:=1 to size do
+  begin
+    MagField_spektr[i]:=MagneticFieldP[i];
+    GxxExp[i]:=Exx[i];
+    GxyExp[i]:=Exy[i];    
+  end;
+
+  Gxx:=TLineSeries.Create(nil);
+  Gxy:=TLineSeries.Create(nil);
+  ExpXX:=TPointSeries.Create(nil);
+  ExpXY:=TPointSeries.Create(nil);
+  electronMobilitySpectrum:=TLineSeries.Create(nil);
+  holeMobilitySpectrum:=TLineSeries.Create(nil);
+
+  MakeMNK(true,Gxx,Gxy,ExpXX,ExpXY);
+  MobilitySpectrumFunc(electronMobilitySpectrum,holeMobilitySpectrum);
+
 end;  
 
 
@@ -1134,190 +1161,42 @@ exports
 RunMobilitySpectrum;
 
 begin
+
+     DllProc:=@ProcDLL;
+
+
+
+
      // Картина такая:
      // Надо выделить память.
+
+   GetLnLimits(Lmin,Lmax);
+   SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
+
+   SetLength(IntMagfield,SizeData);
+   SetLength(IntGxx,SizeData);
+   SetLength(IntGxy,SizeData);
+   //getmem(IntMagfield,SizeData);
+   //getmem(IntGxx,SizeData);
+   //getmem(IntGxy,SizeData);
+
+   //Lmin:=MSLeft;LMax:=MSRight;
+   SizeData:=(MSRight-MSLeft+1)*sizeof(ImageDat);
+
+   SetLength(Spectr_e,SizeData);
+   SetLength(Spectr_P,SizeData);
+   SetLength(Mobility,SizeData);
+
+   //getmem(Spectr_e,SizeData);
+   //getmem(Spectr_P,SizeData);
+   //getmem(Mobility,SizeData);
+   
      // Получить входные данные и сохранить их в нужные массивы.
      // Вызвать две заветные функции.
      // И отдать результаты.
 end.
 
 
-
-{
-
-unit UnitMain;
-
-
-
-const
-    EKT=150.574; {77} // используется в ФМЭ
-{    EKT=136.4; {85}
-{     EKT=115.9; {100}
-{    EKT=92.75; {125}
-   {  Mobility                         [ m**2/V*s ]     ;
-      Magnetic Field                   [ Tesla ]        ;
-      Electric Field                   [ V/m ]          ;
-      Surface Recombination Velocity   [ m/s ]          ;
-      All other values in SI                             ;   }
- { MaxPoints=100;
-  PointPerInt=50;
-  MaxParameters=8;    // Максимальное число параметров
-  MaxRepeat=100;      // Максимальное число повторов
-type
-  EditArray = array[1..36] of TEdit;
-  SeriesArray = array[1..9] of TBarSeries;  
-  Holl   = array[1..4, 1..21] of Extended;
-  HollB  = array[1..2, 1..11] of Extended;
-  HollRh = array[1..11] of Extended;
-  vector = array [0..100] of Extended;
-  DataValue = array[1..MaxParameters, 1..MaxRepeat] of Extended;
-    procedure CreateTabs;
-    procedure FormCreate(Sender: TObject);
-
-
-
-    procedure Button2Click(Sender: TObject);
-    procedure Button4Click(Sender: TObject);
-    procedure N2Click(Sender: TObject);
-    procedure N100Click(Sender: TObject);
-    procedure N8Click(Sender: TObject);
-    procedure Gistogram(mass:DataValue; Ser:SeriesArray; m,n:Integer);
-    procedure Statistic(mass:DataValue; Edit:EditArray; m,n:Integer);
-    procedure N9Click(Sender: TObject);
-
-    procedure btnLoadTenzorClick(Sender: TObject);
-    procedure MakeInterpolate;
-    procedure MakeMNK(a:boolean);
-    procedure MakeLagranj;
-    procedure InitArray;
-    procedure InitArray2;
-    procedure AddExpPoints;
-    procedure GetLnLimits(var Xmin,Xmax:integer);
-    procedure Addpoints(Chart:TChart);
-    procedure AddPoints2;
-    procedure MobilitySpectrumFunc;
-    procedure chtSpectrClickSeries(Sender: TCustomChart; Series: TChartSeries;
-      ValueIndex: Integer; Button: TMouseButton; Shift: TShiftState; X,
-      Y: Integer);
-    procedure FormDestroy(Sender: TObject);
-    procedure chtSpectrMouseMove(Sender: TObject; Shift: TShiftState; X,
-      Y: Integer);
-    procedure SetGridFocus(SGrid: TStringGrid; r:integer);
-    procedure btnClearSpectrTableClick(Sender: TObject);
-   
-    procedure Button10Click(Sender: TObject);
-    procedure Button12Click(Sender: TObject);
-
-    procedure FileOpen_hall8;
-    procedure ReplacementOfSeparator;
-
-
-    procedure LoadConfig;
-
-    procedure LoadSpektrResults;
-    procedure LoadFaradData;
-    procedure LoadFaradRes;
-    procedure LoadHall8Res;
-    procedure LoadFMEData;
-    procedure LoadFMERes;
-
-
-    procedure WriteSpektrResults;
-    procedure WriteFaradRes;
-    procedure WriteHall8Res;
-    procedure WriteFMERes;
-    function  Interval:Boolean;
-    procedure Normir;
-    procedure Scale_FME(FpFme:Holl);
-    procedure ShowGraphics(Edit:EditArray; n:Integer; Graph:Proc);
-
-    procedure btnSpectrResult1Click(Sender: TObject);
-    procedure btnSpectrResultClick(Sender: TObject);
-    procedure btnFeatOnceClick(Sender: TObject);
-    procedure btnFeatMultiClick(Sender: TObject);
-    procedure N32Click(Sender: TObject);
-
-    procedure btnSaveFeatResultsClick(Sender: TObject);
-    procedure btnLoadFeatResultsClick(Sender: TObject);
-    procedure Button28Click(Sender: TObject);
-    procedure N35Click(Sender: TObject);
-
-    procedure StringGrid3SelectCell(Sender: TObject; ACol, ARow: Integer;
-      var CanSelect: Boolean);
-    procedure Button33Click(Sender: TObject);
-    procedure LoadModelData;
-    procedure NormModel;
-    p
-    procedure btnFeatClick(Sender: TObject);
-
-
-  private
-   FNextViewer:HWnd;
-    procedure WMChangeCBChain(var Msg: TWMChangeCBChain); message WM_CHANGECBCHAIN;
-    procedure WMDrawClipboard(var Msg: TWMDrawClipboard); message WM_DRAWCLIPBOARD;
-  public
-    { Public declarations }
- { end;
-  Splain=record
-   A,B,C,D:extended;
-  end;
-  PeakInfo=record
-    Index:word;
-    Value:extended;
-    end;
-  ImageDat=array [0..(PointPerInt-1)*PointPerInt] of extended;
-  PImageDat=^ImageDat;  // указатель на массив из двух элементов.
-  //ImageDat3=array[0..1] of peakinfo;
-  //PImageDat3=^ImageDat3;
-  Data_spektr=array [0..MaxPoints] of extended;
-  mat=array[0..MaxPoints,0..MaxPoints] of extended;
-  Dat1=array[1..MaxPoints] of extended;
-  Dat2=array[1..MaxPoints,1..MaxPoints] of extended;
-  Dat3=array[1..MaxPoints,1..2*MaxPoints] of extended;
-
-var
-  Form1: TForm1;
-  e:Extended;
- 
-  NPoint,NPoint_hm                       :Integer;
-  fil, fil_hall8, Data_File, Config_File :text;
-  muP,Ex,D,UPh,UGrad,UGrad0,UDif,UDif0,
-  Alfa,Alfa0,K_trap,w1,w2,g_s,muE1       :Extended;
-  MagField,FpeExp,Fpe,FmExp,Fm,RoExp,Ro,
-  FpExp,Fp, MagField_FME                 :vector;
-  GraphON_FME, GraphON_hall,
-  GraphOn_Farad                          :Boolean;
-  d1                                     :DataValue;
-  DefaultDir, Recent_File_FME,
-  Recent_File_Farad                      :string;
-  RowInFocus                             :Word;
- /////////////// спектр подвижности///////////
-  NumberofPoints,Power_spektr,GridPoints :word;
-  MagField_spektr,Gxx,Gxy,GxxExp,GxyExp  :Data_spektr;
-  IntGxx,IntGxy,IntMagField,Spectr_e,Spectr_p,Mobility,
-  QSpectr_e,QSpectr_p,Axx,Axy,Axx_d,Axy_d,
-  dIntGxx,dIntGxy,QGxx,QGxy,dQGxx,dQGxy  :PImageDat;
-  //Peak_e,Peak_p,Valley_e,Valley_p        :PImageDat3;
-  SizeData                               :longint;
-  B_spektr,Gxx_sp,Gxx_MC,Gxy_MC,
-  Gxy_sp,Xr,Lv,Xv,Mv,Vpr                 :Dat1;
-  Am,Qm,Cl,Cr,Cl_t,Cr_t,Cm,Cm_t          :Dat2;
-  bulua                                  :boolean;
-  MSRight,MSLeft                         :integer;
-  Min_Spectr,Coef1,Coef2,Mu_min,Mu_max,
-  W,F_s,A1,An,B1,Bn, Ves1, Ves2          :extended;
-  // Геометрия Фарадея
-  FpI                                    :Holl;
-  LoadOld                                :Boolean;
-  Mp, Post                               :Extended;
-  ves:array[1..11] of Extended;
-  
-implementation
-
-uses Unit2, Unit3, Unit4, Unit5, Unit6, Unit7;
-
-
-{$R *.dfm}
   {
 procedure TForm1.FormCreate(Sender: TObject);// создане формы
 begin
