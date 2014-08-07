@@ -32,7 +32,7 @@ uses
 
 {$R *.res}
 const
-  MaxPoints=100;
+  //MaxPoints=100;
   PointPerInt=50;
   //MaxParameters=8;    // Максимальное число параметров
 
@@ -46,22 +46,29 @@ const
     Data_spektr=array of extended;
     
 
-    ImageDat=array of extended;
+    ImageDat=array of extended;  // (PointPerInt-1)*PointPerInt
   PImageDat=^ImageDat;
+  mat= array of array of Extended;
+  Dat1=array of Extended;
+  Dat2= array of array of Extended;
+  Dat3= array of array of Extended;
+
+  {
   mat=array[0..MaxPoints,0..MaxPoints] of extended;
   Dat1=array[1..MaxPoints] of extended;
   Dat2=array[1..MaxPoints,1..MaxPoints] of extended;
   Dat3=array[1..MaxPoints,1..2*MaxPoints] of extended;
 
-
+   }
 
   var
     /////////////// спектр подвижности///////////
   NumberofPoints,Power_spektr,GridPoints :word;
-  MagField_spektr,Gxx,Gxy,GxxExp,GxyExp  :Data_spektr;
-  IntGxx,IntGxy,IntMagField,Spectr_e,Spectr_p,Mobility,
-  QSpectr_e,QSpectr_p,Axx,Axy,Axx_d,Axy_d,
-  dIntGxx,dIntGxy,QGxx,QGxy,dQGxx,dQGxy  :ImageDat;
+  MagField_spektr,GxxExp,GxyExp  :Data_spektr;
+  IntGxx,IntGxy,IntMagField,Spectr_e,Spectr_p,Mobility:ImageDat;
+  
+  QSpectr_e,QSpectr_p,Axx,Axy,Axx_d,Axy_d :PImageDat;
+
   SizeData                               :longint;
   B_spektr,Gxx_sp,Gxx_MC,Gxy_MC,
   Gxy_sp,Xr,Lv,Xv,Mv,Vpr                 :Dat1;
@@ -71,6 +78,9 @@ const
   Min_Spectr,Coef1,Coef2,Mu_min,Mu_max,
   W,F_s,A1,An,B1,Bn, Ves1, Ves2          :extended;
 
+  electronMobilitySpectrum,holeMobilitySpectrum:TLineSeries;
+
+  MaxPoints : Integer;
 { Important note about DLL memory management: ShareMem must be the
   first unit in your library's USES clause AND your project's (select
   Project-View Source) USES clause if your DLL exports any procedures or
@@ -88,12 +98,29 @@ const
 ////////////////////////////////////////////////////////////////////////////
 
 
+ procedure InitArray;
+begin
 
+   SetLength(IntMagfield,SizeData);
+
+   SetLength(IntGxx,SizeData);
+
+   SetLength(IntGxy,SizeData);
+end;
+
+procedure InitArray2;
+begin
+
+   SetLength(Spectr_e,SizeData);
+
+   SetLength(Spectr_P,SizeData);
+   
+   SetLength(Mobility,SizeData);
+end;
 
  
 
-// В общем это освобождение памяти, и его надо бы перетащить в другое место.
-// И разумеется это старьё надо переделать на нормальные динамические массивы:).
+// В общем это освобождение памяти
 procedure ProcDLL(Reason: Integer);
 begin
   if Reason = DLL_PROCESS_DETACH then
@@ -132,98 +159,6 @@ var i,j:word;
      end;
  end;
 
-
- // Вывод точек на график. Пока остаётся закоментированным.
-
-procedure AddPoints2;
-//var sf,b1,b2:extended;
-
-begin
-  {
-   with chtSpectr do    // график спектра как я посмотрю
-    begin
-      with BottomAxis do // его нижние оси
-       begin
-        Logarithmic:=true;  // настройка масштаба
-        Automatic:=false;
-        sf:=0.05*(Series[0].MaxXValue-Series[0].MinXValue);
-        if (Series[0].MinXValue-sf)>0 then Minimum:=Series[0].MinXValue-sf
-            else Minimum:=0.0005;
-       Maximum:=Series[0].MaxXValue+sf;
-      end;
-     with LeftAxis do
-      begin
-       Logarithmic:=True;
-       Automatic:=False;
-       if Series[0].MaxYValue>Series[1].MaxYValue then
-         b1:=Series[0].MaxYValue else b1:=Series[1].MaxYValue;
-       if Series[0].MinYValue<Series[1].MinYValue then
-         b2:=Series[0].MinYvalue else b2:=Series[1].MinYvalue;
-        sf:=0.05*(b1-b2);
-       if (b2-sf)>Maximum then
-        begin
-         Maximum:=b1+sf;
-         if (b2-sf)>0 then
-                       Minimum:=b2-sf
-                      else
-                       Minimum:=b2*0.95;
-
-        end
-        else begin
-         if (b2-sf)>0 then
-                       Minimum:=b2-sf
-                      else
-                       Minimum:=b2*0.95;
-         Maximum:=b1+sf;
-        end;
-      end;
-    end;  }
-end;
-
-
-{
-procedure Addpoints(Chart:TChart);
-//var sf:extended;
-begin
-     with Chart do
-      begin
-      with BottomAxis do
-       begin
-       // Logarithmic:=true;
-       // Automatic:=false;
-        Automatic:=True;
-       { sf:=0.05*(Series[0].MaxXValue-Series[0].MinXValue);
-        if (Series[0].MinXValue-sf)>0 then Minimum:=Series[0].MinXValue-sf
-            else Minimum:=0.0005;
-
-       Maximum:=Series[0].MaxXValue+sf;
-      end;
-     with LeftAxis do
-      begin
-    //   Logarithmic:=true;
-      // Automatic:=false;
-        Automatic:=True;
-      { sf:=0.05*(Series[0].MaxYValue-Series[0].MinYvalue);
-       if (Series[0].MinYValue-sf)>Maximum then
-        begin
-         Maximum:=Series[0].MaxYValue+sf;
-         if (Series[0].MinYValue-sf)>0 then
-                                Minimum:=Series[0].MinYValue-sf
-                                        else
-                                Minimum:=Series[0].MinYValue*0.95;
-        end
-        else begin
-         if (Series[0].MinYValue-sf)>0 then
-                                Minimum:=Series[0].MinYValue-sf
-                                        else
-                                Minimum:=Series[0].MinYValue*0.95;
-         Maximum:=Series[0].MaxYValue+sf;
-        end;
-      end;
-     end;
-end;  }
-
-
 // Эта функция также нужна разве что мне для справки, т.к. вывод на график будет
 // в основной программе.
 // Или нет, не совсем понятно - возможно программа использует построенные графики
@@ -255,15 +190,23 @@ end;
 procedure GetLnLimits(var Xmin,Xmax:integer);
 var f:extended;
 begin
+  ShowMessage('Inside Limits');
    if MagField_spektr[0]>0 then
     begin
+      //ShowMessage('Go to if first');
      f:=ln(MagField_spektr[0])/ln(10);
      Xmin:=trunc(f);
     end
      else XMin:=-3;
+
+     ShowMessage('End up with choises');
+     ShowMessage('NumberOfPoints is'+IntToStr(NumberofPoints));
     f:=ln(MagField_spektr[NumberOfPoints])/ln(10);
+    ShowMessage('Step very carefully');
     Xmax:=trunc(f);
+    ShowMessage('Run if');
     if frac(f)>0.001 then Xmax:=Xmax+1;
+    ShowMessage('End GetLnLimits');
 end;
 
 
@@ -279,7 +222,8 @@ var i,j,m:word;
     K:Data_spektr;
     A,B,R:extended;
 begin
-   SetLength(K,SizeData);
+   SetLength(K,MaxPoints);
+
    K[1]:=0;
    C[1]:=P1;
    A:=X[1]-X[0];
@@ -299,13 +243,21 @@ end;
 function Sp(var X,F,C:Data_spektr;x1:extended):extended;
 var i,j:word;
     A,B,D,Q,R,P:extended;
-begin i:=1; while (X1>X[i]) do inc(i);
+begin
+
+i:=1; while (X1>X[i]) do inc(i);
  j:=i-1;A:=F[j];B:=X[j];Q:=X[i]-B;
  R:=X1-B;P:=C[i];D:=C[i+1];
  B:=(F[i]-A)/q-(D+2*P)*Q/3;D:=(D-P)/3/Q;
  SP:=A+R*(B+R*(P+D*R));
 end;
 begin
+    SetLength(temp_l,MaxPoints);
+    SetLength(temp_t,MaxPoints);
+    SetLength(AGxx,MaxPoints);
+    SetLength(AGxy,MaxPoints);
+    SetLength(AField,MaxPoints);
+
   //Формируем новые матрицы для расчета производных в точке В=0
   AField[0]:=-MagField_spektr[1];
   AGxx[0]:=GxxExp[1];
@@ -337,8 +289,9 @@ begin
    Gxy.Clear;
 
    GetLnLimits(Lmin,Lmax);
-   //SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
-   //InitArray; --------------------------------------------------------------------
+   SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt;
+
+   InitArray; 
    k:=0;
    for i:=0 to (lmax-lmin) do
     begin
@@ -357,8 +310,7 @@ begin
       end;
      if sf>MagField_spektr[NumberofPoints] then break;
     end;
-   //AddPoints(Chart5);
-   //AddPoints(Chart6);
+   
 end;
 
 
@@ -366,6 +318,7 @@ procedure GetNoise(var a,b:Data_spektr;err:extended);
  var i:word;
      t1,t2,v1,v2:extended;
  begin
+
    randomize;
    for i:=1 to NumberOfPoints do begin
     t1:=random;
@@ -386,17 +339,25 @@ var tmp_m:mat;
  var p:extended;
      i:word;
   begin
+
    p:=1;
    for i:=1 to y do p:=p*x;
    pow:=p;
   end;
-procedure BAS(N,M,L:word;X1:extended;var X,T:Data_spektr);
+procedure BAS(n,M,L:word;X1:extended;var X,T:Data_spektr);
 var
-  k:word;z,r:extended;
+  k:word;z,r,denominator:extended;
 begin
- z:=2*(x1-x[0])/(x[n]-x[0])-1;
- t[0]:=1;
+ //ShowMessage('Inside BAS n='+FloatToStr(n));
+ denominator:=(x[n]-x[0]);
+ if denominator=0 then
+ z:=2.0*(x1-x[0])-1.0         //--------------------АХТУНГ!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ else
+ z:=2.0*(x1-x[0])/(x[n]-x[0])-1.0;
+ t[0]:=1.0;
  t[1]:=z;
+
+ //ShowMessage('BAS part 2');
  for k:=1 to m-1 do
  begin
  r:=z*t[k];
@@ -412,66 +373,116 @@ procedure gram(N,M,L:word;var x,f:Data_spektr; var a:mat);
 var i,j,k:integer;
     q,r,s:extended;
     t:Data_spektr;
-    p:array [0..MaxPoints,0..5*MaxPoints] of extended;
+    p:array of array of extended;
 begin
- for i:=0 to N do begin bas(n,m,l,x[i],x,t);
-  for j:=0 to m do p[j,i]:=t[j]
+  SetLength(p,MaxPoints,5*MaxPoints);
+  SetLength(t,MaxPoints);
+  //ShowMessage('Inside gram memory allocated');
+ for i:=0 to N do
+ begin
+   bas(n,m,l,x[i],x,t);
+   for j:=0 to m do
+     p[j,i]:=t[j]
  end;
- for k:=0 to m do begin
-  for j:=k to m do begin s:=0; r:=0;
-   for i:=0 to n do begin q:=p[k,i];s:=s+q*p[j,i];
-    if j=m then r:=r+q*f[i];
-   end; a[k,j]:=s;a[j,k]:=s;
-  end; a[k,m+1]:=r;  // Warning you are not right.
+ for k:=0 to m do
+ begin
+  for j:=k to m do
+  begin
+  s:=0;
+  r:=0;
+   for i:=0 to n do
+   begin
+    q:=p[k,i];
+    s:=s+q*p[j,i];
+     if j=m then
+      r:=r+q*f[i];
+   end;
+   a[k,j]:=s;
+   a[j,k]:=s;
+  end;
+  a[k,m+1]:=r;  // Warning you are not right.
  end;
 end;
 
 procedure gauss(N:word;var a:mat; var x:Data_spektr);
- var i,j,k,k1,n1:word; r,s:extended;
+ var i,j,k,k1,n1:word;
+ r,s:extended;
  begin
+
+   //ShowMessage('in gauss s='+FloatToStr(a[k][k]));
+
    n1:=N+1;
-   for k:=0 to n do begin k1:=k+1;s:=a[k,k];
-    for j:=k1 to n1 do a[k,j]:=a[k,j]/s;
-      for i:=k1 to n do begin r:=a[i,k];
-          for j:=k1 to n1 do a[i,j]:=a[i,j]-a[k,j]*r
+   for k:=0 to n do
+   begin
+    k1:=k+1;
+    s:=a[k,k];
+    //ShowMessage('in gauss s='+FloatToStr(a[k][k]));
+
+    if s = 0 then s:=1;
+
+    for j:=k1 to n1 do
+      a[k,j]:=a[k,j]/s;
+      for i:=k1 to n do
+      begin
+          r:=a[i,k];
+          for j:=k1 to n1 do
+          a[i,j]:=a[i,j]-a[k,j]*r;
       end;
     end;
-     for i:=n downto 0 do begin s:=a[i,n1];
-     for j:=i+1 to n do s:=s-a[i,j]*x[j];
-     x[i]:=s;
+     for i:=n downto 0 do
+     begin
+      s:=a[i,n1];
+      for j:=i+1 to n do
+      s:=s-a[i,j]*x[j];
+      x[i]:=s;
     end;
   end;
 
 procedure fi(n,m,l:word;var c,x:Data_spektr;var x1,s:extended);
-var i:word;t:Data_spektr;
+var i:word;
+t:Data_spektr;
 begin
+ SetLength(t,MaxPoints);
  s:=c[0];
  bas(n,m,l,x1,x,t);
  for i:=1 to m do s:=s+c[i]*t[i]
 end;
 begin
+  ShowMessage('Inside MakeMNK');
+  SetLength(tmp_m,MaxPoints,MaxPoints);
+  SetLength(coef_t,MaxPoints);
+  SetLength(coef_l,MaxPoints);
+  ShowMessage('Memory allocated');
  {if not(test) then
   begin}
    Power_spektr:=3;  // какая-то степень, или мощность, сильно похоже на кол-во типов носителей
    Kind:=2;  // разновидности, тоже пока не ясно зачем и что
    // эти вызовы заполняют матрицу tmp_m
    // которая кстати уже не пустая О_о
+   //ShowMessage('Run gram 1');
    gram(NumberOfPoints,Power_spektr,Kind,MagField_spektr,GxxExp,tmp_m);
    // Гаусс - судя по всему решает матрицу методом Гаусса, сохраняет всё в coef-l
+   //ShowMessage('Run gauss 1');
    gauss(Power_spektr,tmp_m,coef_l);
+   //ShowMessage('Run gram 2');
    gram(NumberOfPoints,Power_spektr,Kind,MagField_spektr,GxyExp,tmp_m);
+   //ShowMessage('Run gauss 2');
    gauss(Power_spektr,tmp_m,coef_t);
 
    Gxx.Clear; // чистим графики компонент
    Gxy.Clear;
-   
+   ShowMessage('Goodbye gauss and gram!');
 
    if a then
      begin
+
+      ShowMessage('AddExpPoints');
       AddExpPoints(ExpXX,ExpXY); // добавляет точки на график, экспериментальные
-      //GetLnLimits(Lmin,Lmax); // получает пределы, логарифмические
-      //SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat); // считаем размер данных
-      //InitArray;  // выделяем его---------------------------------------------------------------
+      ShowMessage('GetLnLimits');
+      GetLnLimits(Lmin,Lmax); // получает пределы, логарифмические
+      SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt; // считаем размер данных
+      InitArray;  // выделяем его---------------------------------------------------------------
+      ShowMessage('After init array in MakeMNK');
       k:=0;
       for i:=0 to (lmax-lmin) do
        begin
@@ -497,8 +508,7 @@ begin
        end;
       if sf>MagField_spektr[NumberofPoints] then break;
      end;
-     //AddPoints(Chart5);
-     //AddPoints(Chart6);
+
     end else
     begin
      for i:=0 to NumberOfPoints do
@@ -726,34 +736,61 @@ function GetElem(j1,k1,i1:word):extended;
  begin
     s:=0;
     for  ii:=i1 to (NumberOfPoints-(j1-2)) do
-     if j1=2 then begin
-       if ii<>k1 then s:=s+sqr(B_spektr[ii]) end else
-        if ii<>k1 then s:=s+sqr(B_spektr[ii])*GetElem(j1-1,k1,ii+1);
+    begin
+     if j1=2 then
+     begin
+
+       if ii<>k1 then
+          s:=s+sqr(B_spektr[ii])
+     end
+     else
+        if ii<>k1 then
+        s:=s+sqr(B_spektr[ii])*GetElem(j1-1,k1,ii+1);
+     end;
     GetElem:=s;
  end;
 
 
 procedure MakeMatrC;
 var
- j,k{,i1,i2,i3,i4,i5,i6,i7,i8}:word;
+ j,k:word;
 begin
- fillchar(Cr, Sizeof(Cr), 0);
+ {fillchar(Cr, Sizeof(Cr), 0);
+ ShowMessage('after Filling');
+ Cr[1,1]:=12;
+ Cr[11,11]:=14;
  fillchar(Cl, Sizeof(Cl), 0);
  fillchar(Cr_t,Sizeof(Cr_t),0);
  fillchar(Cl_t,Sizeof(Cl_t),0);
- fillchar(Am, Sizeof(Am), 0);
+ fillchar(Am, Sizeof(Am), 0); }  // заполнение массивов нулями как я погляжу...
+ //ShowMessage('Cr is'+FloatToStr(Cr[5,5]));
+
+ //ShowMessage('End up with fillings, Number of points is'+ IntToStr(NumberofPoints));
  for j:=1 to NumberOfPoints do
-  for k:=1 to NumberOfPoints do begin
-   if j=1 then Cr[j,k]:=1 else
+  for k:=1 to NumberOfPoints do
+  begin
+   if j=1 then
+   begin
+    // ShowMessage('Step here j='+IntToStr(j)+' k='+IntToStr(k));
+    Cr[j,k]:=1;
+   end  
+
+   else
+   begin
+     //ShowMessage('One step close');
      Cr[j,k]:=GetElem(j,k,1);
-     Cl[j,k]:=-Cr[j,k]*B_spektr[k];
+   end;  
+
+     //ShowMessage('Are you there?');
+     Cl[j,k]:=-Cr[j,k]*B_spektr[k]; 
     end;
 end;
 
 procedure MakeMatrA;
  var i,j,k:word;
  begin
-  fillchar(Am,sizeof(Am),0);
+  //fillchar(Am,sizeof(Am),0);
+  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   for i:=1 to NumberOfPoints do
    for j:=1 to NumberOfPoints do
     if odd(i+j) then
@@ -770,6 +807,7 @@ procedure InverseMatrC(var Ci:dat2;var C:dat2;var Su:extended;NP:word);
        at:dat3;
        sr:extended;
   begin
+    SetLength(at,MaxPoints+1,2*MaxPoints+1);
   for i:=1 to Np do
    for j:=1 to NP do
       at[i,j]:=Ci[i,j];
@@ -848,6 +886,7 @@ var
 
 
 begin
+  ShowMessage('Inside MobilitySpectrum');
    for i:=0 to NumberOfPoints do
     begin
      B_spektr[i+1]:=MagField_spektr[i];
@@ -855,12 +894,15 @@ begin
      Gxy_sp[i+1]:=GxyExp[i];
     end;
    inc(NumberOfPoints);
+   ShowMessage('Run MakeMatrC');
    MakeMatrC;
+   ShowMessage('RunInverseMatcC');
    InverseMatrC(Cr,Cr_t,Sf,NumberOfPoints);
    if Sf=0 then begin MessageDLG('Определитель равен нулю!',mtError,[mbOK],0);
          dec(NumberOfPoints);
          exit; end;
-   if MagField_spektr[0]=0 then begin
+   if MagField_spektr[0]=0 then
+   begin
     for j:=1 to NumberOfPoints-1 do
     for k:=1 to NumberOfPoints-1 do
      Cm[j,k]:=Cl[j,k+1];
@@ -872,17 +914,24 @@ begin
           Cl_t[j,k]:=Cm_t[j-1,k];
     end else
     InverseMatrC(Cl,Cl_t,Sf,NumberOfPoints);
+
+    ShowMessage('Run MakeMartA. Line 891');
     MakeMatrA;
     // интересно что это за числа ниже?
+    ShowMessage('Run Tred2');
     Tred2(NumberOfPoints,6e-4913,Lv,Xv,am,Qm,bulua);
+    ShowMessage('Run Imtql2');
     Imtql2(NumberOfPoints,5.42e-20,Lv,Xv,Qm,bulua);
 
      LineSeries1.Clear;
      Series5.Clear;
    Lmin:=MSLeft;LMax:=MSRight;
-   SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
-   //InitArray2;
+   SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt; // возможно тут придется домножать на размер элемента
+   // впрочем нет - там же сейчас другая функция.
+   ShowMessage('InitArray2');
+   InitArray2;
    k:=0;
+   ShowMessage('Last for...');
    for i:=0 to (lmax-lmin) do
     begin
      lm:=exp((lmin+i)*ln(10));
@@ -901,7 +950,7 @@ begin
      if sf>10 then break;
     end;
     GridPoints:=k-1;
-   AddPoints2;
+   //AddPoints2;
    dec(NumberOfPoints);
 end;
 
@@ -911,23 +960,7 @@ var i:word;
 begin
   Result:=0;
   for i:=0 to gridPoints do
-   result:=result+Axx[i]*(QSpectr_p[i]+QSpectr_e[i]);
-end;
-
-      // Загрузка данных из файла
-procedure btnLoadTenzorClick(OpenDialog2:TOpenDialog;Series5:TPointSeries;
-LineSeries1:TLineSeries);
-
-//MagField_spektr[i],GxxExp[i],GxyExp[i]
-// Это поле, продольная и поперечная компоненты тензора проводимости.
-// Вот в эти три массива нужно записать входные данные.
-
-
-begin
-  {
-   MakeMNK(true);
-   MobilitySpectrumFunc;  // спектр подвижности. Начало.
- end;     }
+   result:=result+Axx^[i]*(QSpectr_p^[i]+QSpectr_e^[i]);
 end;
 
 
@@ -1099,41 +1132,126 @@ begin
   }
 end;
 
-procedure btnSpectrResult1Click(Sender: TObject);
-begin
- { if SDSpektrRes.Execute then
-  begin
-    AssignFile(Data_File, SDSpektrRes.FileName);
-    if not Interval then  // если таблица не пуста и интервалы рассчитаны, то
-    WriteSpektrResults;
-  end;}
-end;
-
-procedure StringGrid3SelectCell(Sender: TObject; ACol,
-  ARow: Integer; var CanSelect: Boolean;StringGrid3:TStringGrid);
-begin
- //StringGrid3.RowInFocus:=ARow;
-end;    
 
 ////////////////////////////////////////////////////////////////////////////
 /////////////////////// КОНЕЦ "ХОЛЛ. ПОДВИЖНОСТЬ"///////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
+procedure getResults(var outElectronSpectrX,outElectronSpectrY,
+outHoleSpectrX,outHoleSpectrY: array of Extended);
+var i:Integer;
+begin
+  for i:=0 to electronMobilitySpectrum.XValues.Count do
+  begin
+   outElectronSpectrX[i]:=electronMobilitySpectrum.XValue[i];
+   outElectronSpectrY[i]:=electronMobilitySpectrum.YValue[i];
+  end;
+  for i:=0 to holeMobilitySpectrum.XValues.Count do
+  begin
+   outHoleSpectrX[i]:=holeMobilitySpectrum.XValue[i];
+   outHoleSpectrY[i]:=holeMobilitySpectrum.YValue[i];
+  end;
+
+end;  
+
 
 // входные параметры есть, надо подумать что мы возвращаем, где оно хранится
 // и как мы это будем возвращать.
-procedure RunMobilitySpectrum (MagneticFieldP,Exx,Exy: Data_spektr; size:Integer);
+function RunMobilitySpectrum (MagneticFieldP,Exx,Exy: Data_spektr; size:ULONG ):Integer;
 var i:Integer;
 Gxx,Gxy:TLineSeries;
 ExpXX,ExpXY:TPointSeries;
-electronMobilitySpectrum,holeMobilitySpectrum:TLineSeries;
+
 begin
-  for i:=1 to size do
+
+  MaxPoints:=size;
+
+  if MaxPoints>1000 then
+  MaxPoints:=11;
+
+  NumberOfPoints:=MaxPoints-1;
+
+  ShowMessage(IntToStr(MaxPoints));
+
+  SetLength(MagField_spektr,MaxPoints);
+  SetLength(GxxExp,MaxPoints);
+  SetLength(GxyExp,MaxPoints);
+
+                       // тут бы вообще другой размер нужен (см. ниже).
+  {
+  SetLength(IntGxx,(PointPerInt-1)*PointPerInt);
+  SetLength(IntGxy,(PointPerInt-1)*PointPerInt);
+  SetLength(IntMagField,(PointPerInt-1)*PointPerInt);
+  
+  SetLength(Spectr_e,(PointPerInt-1)*PointPerInt);
+  SetLength(Spectr_p,(PointPerInt-1)*PointPerInt);
+  SetLength(Mobility,(PointPerInt-1)*PointPerInt);
+  }
+
+  // где они используются вообще?О_о
+  {SetLength(QSpectr_e,(PointPerInt-1)*PointPerInt);
+  SetLength(QSpectr_p,(PointPerInt-1)*PointPerInt);
+  SetLength(Axx,(PointPerInt-1)*PointPerInt);
+  SetLength(Axy,(PointPerInt-1)*PointPerInt);
+  SetLength(Axx_d,(PointPerInt-1)*PointPerInt);
+  SetLength(Axy_d,(PointPerInt-1)*PointPerInt);
+  SetLength(dIntGxx,(PointPerInt-1)*PointPerInt);
+  SetLength(dIntGxy,(PointPerInt-1)*PointPerInt);
+  SetLength(QGxx,(PointPerInt-1)*PointPerInt);
+  SetLength(QGxy,(PointPerInt-1)*PointPerInt);
+  SetLength(dQGxx,(PointPerInt-1)*PointPerInt);
+  SetLength(dQGxy,(PointPerInt-1)*PointPerInt);  }
+
+
+  SetLength(B_spektr,MaxPoints+1);
+
+  SetLength(Gxx_sp,MaxPoints+1);
+  SetLength(Gxx_MC,MaxPoints+1);
+  SetLength(Gxy_MC,MaxPoints+1);
+  SetLength(Gxy_sp,MaxPoints+1);
+  SetLength(Xr,MaxPoints+1);
+  SetLength(Lv,MaxPoints+1);
+  SetLength(Xv,MaxPoints+1);
+  SetLength(Mv,MaxPoints+1);
+  SetLength(Vpr,MaxPoints+1);
+
+
+
+  SetLength(Am,MaxPoints+1,MaxPoints+1);
+  SetLength(Qm,MaxPoints+1,MaxPoints+1);
+  SetLength(Cl,MaxPoints+1,MaxPoints+1);
+  SetLength(Cr,MaxPoints+1,MaxPoints+1);
+  ShowMessage('One');
+  Cr[11,11]:=1;
+  ShowMessage('two');
+  Cr[0,1]:=1;
+  ShowMessage('many');
+  Cr[1,1]:=1;
+  SetLength(Cl_t,MaxPoints+1,MaxPoints+1);
+  SetLength(Cr_t,MaxPoints+1,MaxPoints+1);
+  SetLength(Cm,MaxPoints+1,MaxPoints+1);
+  SetLength(Cm_t,MaxPoints+1,MaxPoints+1);
+
+
+   {
+  mat=array[0..MaxPoints,0..MaxPoints] of extended;
+  Dat1=array[1..MaxPoints] of extended;
+  Dat2=array[1..MaxPoints,1..MaxPoints] of extended;
+  Dat3=array[1..MaxPoints,1..2*MaxPoints] of extended;
+
+   }
+
+
+  ShowMessage('Memory allocated successfully');
+  
+  for i:=0 to MaxPoints-1 do
   begin
     MagField_spektr[i]:=MagneticFieldP[i];
     GxxExp[i]:=Exx[i];
-    GxyExp[i]:=Exy[i];    
+    GxyExp[i]:=Exy[i];
   end;
+
+  ShowMessage('Data has copied');
 
   Gxx:=TLineSeries.Create(nil);
   Gxy:=TLineSeries.Create(nil);
@@ -1142,196 +1260,77 @@ begin
   electronMobilitySpectrum:=TLineSeries.Create(nil);
   holeMobilitySpectrum:=TLineSeries.Create(nil);
 
+  ShowMessage('Run MakeMNK');
+
   MakeMNK(true,Gxx,Gxy,ExpXX,ExpXY);
+  ShowMessage('Run MobilitySpectrumFunc');
+
   MobilitySpectrumFunc(electronMobilitySpectrum,holeMobilitySpectrum);
 
+
+  // Прибираемся
+  ShowMessage('Run clean up');
+  SetLength(MagField_spektr,0);
+  SetLength(GxxExp,0);
+  SetLength(GxyExp,0);
+
+  // где они используются вообще?О_о
+  {SetLength(QSpectr_e,0);
+  SetLength(QSpectr_p,0);
+  SetLength(Axx,0);
+  SetLength(Axy,0);
+  SetLength(Axx_d,0);
+  SetLength(Axy_d,0);
+  SetLength(dIntGxx,0);
+  SetLength(dIntGxy,0);
+  SetLength(QGxx,0);
+  SetLength(QGxy,0);
+  SetLength(dQGxx,0);
+  SetLength(dQGxy,0);
+   }
+
+  SetLength(B_spektr,0);
+  SetLength(Gxx_sp,0);
+  SetLength(Gxx_MC,0);
+  SetLength(Gxy_MC,0);
+  SetLength(Gxy_sp,0);
+  SetLength(Xr,0);
+  SetLength(Lv,0);
+  SetLength(Xv,0);
+  SetLength(Mv,0);
+  SetLength(Vpr,0);
+
+  SetLength(Am,0,0);
+  SetLength(Qm,0,0);
+  SetLength(Cl,0,0);
+  SetLength(Cr,0,0);
+  SetLength(Cl_t,0,0);
+  SetLength(Cr_t,0,0);
+  SetLength(Cm,0,0);
+  SetLength(Cm_t,0,0);
+
+  Result:=electronMobilitySpectrum.XValues.Count;
 end;  
-
-
-{
-Как я понял, для построения спектра подвижности нужно:
-
-Вызвать MakeMNK(true)
-и  MobilitySpectrumFunc;
-
-}
 
 exports
 
-RunMobilitySpectrum;
+RunMobilitySpectrum,getResults;
 
 begin
 
      DllProc:=@ProcDLL;
 
-
-
-
      // Картина такая:
      // Надо выделить память.
 
-   GetLnLimits(Lmin,Lmax);
-   SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
+   //SetLength(IntMagfield,SizeData);
+   //SetLength(IntGxx,SizeData);
+   //SetLength(IntGxy,SizeData);
 
-   SetLength(IntMagfield,SizeData);
-   SetLength(IntGxx,SizeData);
-   SetLength(IntGxy,SizeData);
-   //getmem(IntMagfield,SizeData);
-   //getmem(IntGxx,SizeData);
-   //getmem(IntGxy,SizeData);
+   //SetLength(Spectr_e,SizeData);
+   //SetLength(Spectr_P,SizeData);
+   //SetLength(Mobility,SizeData);
 
-   //Lmin:=MSLeft;LMax:=MSRight;
-   SizeData:=(MSRight-MSLeft+1)*sizeof(ImageDat);
 
-   SetLength(Spectr_e,SizeData);
-   SetLength(Spectr_P,SizeData);
-   SetLength(Mobility,SizeData);
-
-   //getmem(Spectr_e,SizeData);
-   //getmem(Spectr_P,SizeData);
-   //getmem(Mobility,SizeData);
-   
-     // Получить входные данные и сохранить их в нужные массивы.
-     // Вызвать две заветные функции.
-     // И отдать результаты.
 end.
-
-
-  {
-procedure TForm1.FormCreate(Sender: TObject);// создане формы
-begin
-  CreateTabs;  // заполнение таблиц
-  DefaultDir:=GetCurrentDir;
-  e:=1.602176487*Power(10,-19);
-  DecimalSeparator:=',';
-  FnextViewer:=SetClipboardViewer(Handle);
-  GraphON_FME:=True;  // графики включены
-  GraphON_hall:=True;
-  GraphOn_Farad:=True;
-  // из Спектра подвижности
-  MSLeft:=-2;
-  MSRight:=1;
-  Coef1:=2.1;
-  Coef2:=1.6;
-  Mu_min:=0.01;
-  Mu_max:=100;
-  Min_Spectr:=1e-4;
-  RowInFocus:=1;
-  SetGridFocus(StringGrid3,RowInFocus);
-  AssignFile(Config_File,DefaultDir+'\Data\Config.txt');
-  AssignFile(Data_File,DefaultDir+'\Data\Recent_Data.dat');
-  LoadConfig;
-  ReplacementOfSeparator;
-  
-  Memo7.Lines.LoadFromFile(DefaultDir+'\Data\FME_Prototype.dat');
-  Label46.Caption:='ПРОТОТИП файла .fm';
-  Memo16.Lines.LoadFromFile(DefaultDir+'\Data\Farad_Prototype.dat');
-  Label39.Caption:='ПРОТОТИП файла .mpc';
-end;
-
-procedure TForm1.CreateTabs;
-var j:Integer;
-begin
-
-
-  // Создание таблицы
-  StringGrid3.Cells[0,1]:='Тяжёлые дырки';
-  StringGrid3.Cells[0,2]:='Лёгкие дырки';
-  StringGrid3.Cells[0,3]:='Электроны';
-  StringGrid3.Cells[1,0]:='Концентрация';
-  StringGrid3.Cells[2,0]:='Подвижность';
-
-end;
-// возникает при изменении очереди наблюдателей за буфером обмена
-procedure TForm1.WMChangeCBChain(var Msg: TWMChangeCBChain);
-begin
- if Msg.Remove = FNextViewer then
-  FnextViewer:=Msg.Next
- else
-  SendMessage(FNextViewer, WM_CHANGECBCHAIN, Msg.Remove, Msg.Next);
-end;
-
-// возникает при изменении буфера обмена
-procedure TForm1.WMDrawClipboard(var Msg: TWMDrawClipboard);
-begin
-  SendMessage(FNextViewer, WM_DRAWCLIPBOARD, 0, 0);
-end;
-
-
-
-
-////////////////////////////////////////////////////////////////////////////
-///////////////// НАЧАЛО "ХОЛЛ. МНОГОЗОННАЯ ПОДГОНКА" //////////////////////
-////////////////////////////////////////////////////////////////////////////
-
-
-//////////////////////////////////////////////////////////////////////////////
-////////////////////// ПРОЦЕДУРЫ ДЛЯ ЗАГРУЗКИ И СОХРАНЕНИЯ////////////////////
-//////////////////////////////////////////////////////////////////////////////
-       {
-procedure TForm1.ReplacementOfSeparator;   // Убирает запятые из файла
-var j,position,size_m:Integer;
-    MiniString, MaxiString:string;
-
-begin
-  MiniString:='';
-  MaxiString:='';
-{$I-}
- {   Reset(Data_File);
-{$I+}
- { if IOResult<>0 then
-   begin
-    ShowMessage('Ошибка открытия файла');
-    Exit;
-   end
-  else
-    begin
-     while not Eof(Data_File) do // Убираем запятые, если они есть,
-                            // и заменяем их на '.'
-      begin
-        Readln(Data_File,  ministring);
-        size_m:=SizeOf(MiniString);
-        for j:=0 to size_m+1 do
-        begin
-          position:=Pos(',',MiniString);
-          if position<>0 then
-          MiniString[position]:='.';
-        end;
-
-        MaxiString:=MaxiString+MiniString+#13#10;
-      end;
-      CloseFile(Data_File);
-    end;
-
-  Rewrite(Data_File);    // Переписываем файл без запятых
-  Write(Data_File, MaxiString);
-  CloseFile(Data_File);
-end;
-
-procedure TForm1.LoadConfig;
-begin
-{$I-}
-    Reset(Config_File);
-{$I+}
- { if IOResult<>0 then    // обходим ошибку открытия
-   begin
-    ShowMessage('Ошибка открытия файла конфигураций');
-    Exit;
-   end
-  else
- begin
-  try    // обходим ошибку загрузки
-   Readln(Config_File, NPoint_hm);
-   Readln(Config_File, NPoint);
-  except
-    ShowMessage('Ошибка загрузки конфигураций');
-    Rewrite(Config_File);
-    Writeln(Config_File,21);
-    Writeln(Config_File,11);
-  end;
-  CloseFile(Config_File);
- end;
-end;
-
-        }
 
