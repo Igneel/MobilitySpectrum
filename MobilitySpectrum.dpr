@@ -452,41 +452,37 @@ begin
  for i:=1 to m do s:=s+c[i]*t[i]
 end;
 begin
-  //ShowMessage('Inside MakeMNK');
   SetLength(tmp_m,MaxPoints,MaxPoints);
   SetLength(coef_t,MaxPoints);
   SetLength(coef_l,MaxPoints);
-  //ShowMessage('Memory allocated');
+
  {if not(test) then
   begin}
    Power_spektr:=3;  // какая-то степень, или мощность, сильно похоже на кол-во типов носителей
    Kind:=2;  // разновидности, тоже пока не ясно зачем и что
    // эти вызовы заполняют матрицу tmp_m
    // которая кстати уже не пустая О_о
-   //ShowMessage('Run gram 1');
+
    gram(NumberOfPoints,Power_spektr,Kind,MagField_spektr,GxxExp,tmp_m);
    // Гаусс - судя по всему решает матрицу методом Гаусса, сохраняет всё в coef-l
-   //ShowMessage('Run gauss 1');
+
    gauss(Power_spektr,tmp_m,coef_l);
-   //ShowMessage('Run gram 2');
+
    gram(NumberOfPoints,Power_spektr,Kind,MagField_spektr,GxyExp,tmp_m);
-   //ShowMessage('Run gauss 2');
+
    gauss(Power_spektr,tmp_m,coef_t);
 
    Gxx.Clear; // чистим графики компонент
    Gxy.Clear;
-  // ShowMessage('Goodbye gauss and gram!');
+
 
    if a then
      begin
-
-   //   ShowMessage('AddExpPoints');
       AddExpPoints(ExpXX,ExpXY); // добавляет точки на график, экспериментальные
-   //   ShowMessage('GetLnLimits');
       GetLnLimits(Lmin,Lmax); // получает пределы, логарифмические
       SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt; // считаем размер данных
       InitArray;  // выделяем его---------------------------------------------------------------
-   //   ShowMessage('After init array in MakeMNK');
+
       k:=0;
       for i:=0 to (lmax-lmin) do
        begin
@@ -759,17 +755,18 @@ procedure MakeMatrC;
 var
  j,k:word;
 begin
- {fillchar(Cr, Sizeof(Cr), 0);
- ShowMessage('after Filling');
- Cr[1,1]:=12;
- Cr[11,11]:=14;
- fillchar(Cl, Sizeof(Cl), 0);
- fillchar(Cr_t,Sizeof(Cr_t),0);
- fillchar(Cl_t,Sizeof(Cl_t),0);
- fillchar(Am, Sizeof(Am), 0); }  // заполнение массивов нулями как я погляжу...
- //ShowMessage('Cr is'+FloatToStr(Cr[5,5]));
 
- //ShowMessage('End up with fillings, Number of points is'+ IntToStr(NumberofPoints));
+ for j:=1 to NumberOfPoints do
+  for k:=1 to NumberOfPoints do
+  begin
+    Cr[j,k]:=0;
+    Cl[j,k]:=0;
+    Cr_t[j,k]:=0;
+    Cl_t[j,k]:=0;
+    Am[j,k]:=0;
+
+    end;
+ 
  for j:=1 to NumberOfPoints do
   for k:=1 to NumberOfPoints do
   begin
@@ -793,8 +790,13 @@ end;
 procedure MakeMatrA;
  var i,j,k:word;
  begin
-  //fillchar(Am,sizeof(Am),0);
-  //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+ for j:=1 to NumberOfPoints do
+  for k:=1 to NumberOfPoints do
+  begin
+    Am[j,k]:=0;
+    end;
+
   for i:=1 to NumberOfPoints do
    for j:=1 to NumberOfPoints do
     if odd(i+j) then
@@ -890,7 +892,7 @@ var
 
 
 begin
- // ShowMessage('Inside MobilitySpectrum');
+
    for i:=0 to NumberOfPoints do
     begin
      B_spektr[i+1]:=MagField_spektr[i];
@@ -898,9 +900,7 @@ begin
      Gxy_sp[i+1]:=GxyExp[i];
     end;
    inc(NumberOfPoints);
-  // ShowMessage('Run MakeMatrC');
-   MakeMatrC;
-  // ShowMessage('RunInverseMatcC');
+   MakeMatrC;          
    InverseMatrC(Cr,Cr_t,Sf,NumberOfPoints);
    if Sf=0 then begin MessageDLG('Определитель равен нулю!',mtError,[mbOK],0);
          dec(NumberOfPoints);
@@ -918,24 +918,17 @@ begin
           Cl_t[j,k]:=Cm_t[j-1,k];
     end else
     InverseMatrC(Cl,Cl_t,Sf,NumberOfPoints);
-
-    //ShowMessage('Run MakeMartA. Line 891');
     MakeMatrA;
     // интересно что это за числа ниже?
-    //ShowMessage('Run Tred2');
     Tred2(NumberOfPoints,6e-4913,Lv,Xv,am,Qm,bulua);
-    //ShowMessage('Run Imtql2');
     Imtql2(NumberOfPoints,5.42e-20,Lv,Xv,Qm,bulua);
-
-     LineSeries1.Clear;
-     Series5.Clear;
+    LineSeries1.Clear;
+    Series5.Clear;
    Lmin:=MSLeft;LMax:=MSRight;
    SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt; // возможно тут придется домножать на размер элемента
    // впрочем нет - там же сейчас другая функция.
-  // ShowMessage('InitArray2');
    InitArray2;
    k:=0;
-  // ShowMessage('Last for...');
    for i:=0 to (lmax-lmin) do
     begin
      lm:=exp((lmin+i)*ln(10));
@@ -1162,7 +1155,7 @@ begin
 end;
 
 function getResults(var outElectronSpectrX,  outElectronSpectrY,
-outHoleSpectrX,outHoleSpectrY: Data_spektr): Pointer; stdcall;
+outHoleSpectrX,outHoleSpectrY: Data_spektr): Integer; stdcall;
 var i:Integer;
 begin
   ShowMessage('Inside getResults. Count is '+ IntToStr(electronMobilitySpectrum.XValues.Count));
@@ -1171,21 +1164,15 @@ begin
   SetLength(outSpectrEY,electronMobilitySpectrum.XValues.Count);
   SetLength(outSpectrHX,electronMobilitySpectrum.XValues.Count);
   SetLength(outSpectrHY,electronMobilitySpectrum.XValues.Count);
-  // Краш на 48 на 4м
   for i:=0 to electronMobilitySpectrum.XValues.Count-1 do
   begin
-   // ShowMessage(IntToStr(i));
-   // ShowMessage('1');
+
   outSpectrEX[i]:=electronMobilitySpectrum.XValue[i];
-  //ShowMessage('2');
   outSpectrEY[i]:=electronMobilitySpectrum.YValue[i];
-  //ShowMessage('3');
   outSpectrHX[i]:=holeMobilitySpectrum.XValue[i];
-  //ShowMessage('4');
-  //ShowMessage(IntToStr(Length(outSpectrHY)));
   outSpectrHY[i]:=holeMobilitySpectrum.YValue[i];
   end;
-  Result:=@outSpectrEX;
+  Result:=5;
   {
   for i:=0 to electronMobilitySpectrum.XValues.Count do
   begin
@@ -1223,11 +1210,22 @@ begin
 
   NumberOfPoints:=MaxPoints-1;
 
-  //ShowMessage(IntToStr(MaxPoints));
+  
+  
 
   SetLength(MagField_spektr,MaxPoints);
   SetLength(GxxExp,MaxPoints);
   SetLength(GxyExp,MaxPoints);
+
+  // из Спектра подвижности
+  MSLeft:=-2;
+  MSRight:=1;
+  Coef1:=2.1;
+  Coef2:=1.6;
+  Mu_min:=0.01;
+  Mu_max:=100;
+  Min_Spectr:=1e-4;
+  
 
                        // тут бы вообще другой размер нужен (см. ниже).
   {
@@ -1256,7 +1254,6 @@ begin
 
 
   SetLength(B_spektr,MaxPoints+1);
-
   SetLength(Gxx_sp,MaxPoints+1);
   SetLength(Gxx_MC,MaxPoints+1);
   SetLength(Gxy_MC,MaxPoints+1);
@@ -1273,7 +1270,6 @@ begin
   SetLength(Qm,MaxPoints+1,MaxPoints+1);
   SetLength(Cl,MaxPoints+1,MaxPoints+1);
   SetLength(Cr,MaxPoints+1,MaxPoints+1);
-  
   SetLength(Cl_t,MaxPoints+1,MaxPoints+1);
   SetLength(Cr_t,MaxPoints+1,MaxPoints+1);
   SetLength(Cm,MaxPoints+1,MaxPoints+1);
@@ -1288,9 +1284,6 @@ begin
 
    }
 
-
-  //ShowMessage('Memory allocated successfully');
-  
   for i:=0 to MaxPoints-1 do
   begin
     MagField_spektr[i]:=MagneticFieldP[i];
@@ -1298,7 +1291,6 @@ begin
     GxyExp[i]:=Exy[i];
   end;
 
-  //ShowMessage('Data has copied');
 
   Gxx:=TLineSeries.Create(nil);
   Gxy:=TLineSeries.Create(nil);
@@ -1307,34 +1299,19 @@ begin
   electronMobilitySpectrum:=TLineSeries.Create(nil);
   holeMobilitySpectrum:=TLineSeries.Create(nil);
 
-  //ShowMessage('Run MakeMNK');
+
 
   MakeMNK(true,Gxx,Gxy,ExpXX,ExpXY);
-  ShowMessage('Run MobilitySpectrumFunc');
+
 
   MobilitySpectrumFunc(electronMobilitySpectrum,holeMobilitySpectrum);
 
 
   // Прибираемся
-  ShowMessage('Run clean up');
+
   SetLength(MagField_spektr,0);
   SetLength(GxxExp,0);
   SetLength(GxyExp,0);
-
-  // где они используются вообще?О_о
-  {SetLength(QSpectr_e,0);
-  SetLength(QSpectr_p,0);
-  SetLength(Axx,0);
-  SetLength(Axy,0);
-  SetLength(Axx_d,0);
-  SetLength(Axy_d,0);
-  SetLength(dIntGxx,0);
-  SetLength(dIntGxy,0);
-  SetLength(QGxx,0);
-  SetLength(QGxy,0);
-  SetLength(dQGxx,0);
-  SetLength(dQGxy,0);
-   }
 
   SetLength(B_spektr,0);
   SetLength(Gxx_sp,0);
