@@ -65,6 +65,10 @@ const
     /////////////// спектр подвижности///////////
   NumberofPoints,Power_spektr,GridPoints :word;
   MagField_spektr,GxxExp,GxyExp  :Data_spektr;
+
+
+  outSpectrEX,outSpectrEY,outSpectrHX,outSpectrHY:Data_spektr;
+
   IntGxx,IntGxy,IntMagField,Spectr_e,Spectr_p,Mobility:ImageDat;
   
   QSpectr_e,QSpectr_p,Axx,Axy,Axx_d,Axy_d :PImageDat;
@@ -190,7 +194,7 @@ end;
 procedure GetLnLimits(var Xmin,Xmax:integer);
 var f:extended;
 begin
-  ShowMessage('Inside Limits');
+  //ShowMessage('Inside Limits');
    if MagField_spektr[0]>0 then
     begin
       //ShowMessage('Go to if first');
@@ -199,14 +203,14 @@ begin
     end
      else XMin:=-3;
 
-     ShowMessage('End up with choises');
-     ShowMessage('NumberOfPoints is'+IntToStr(NumberofPoints));
+    // ShowMessage('End up with choises');
+    // ShowMessage('NumberOfPoints is'+IntToStr(NumberofPoints));
     f:=ln(MagField_spektr[NumberOfPoints])/ln(10);
-    ShowMessage('Step very carefully');
+    //ShowMessage('Step very carefully');
     Xmax:=trunc(f);
-    ShowMessage('Run if');
+    //ShowMessage('Run if');
     if frac(f)>0.001 then Xmax:=Xmax+1;
-    ShowMessage('End GetLnLimits');
+    //ShowMessage('End GetLnLimits');
 end;
 
 
@@ -448,11 +452,11 @@ begin
  for i:=1 to m do s:=s+c[i]*t[i]
 end;
 begin
-  ShowMessage('Inside MakeMNK');
+  //ShowMessage('Inside MakeMNK');
   SetLength(tmp_m,MaxPoints,MaxPoints);
   SetLength(coef_t,MaxPoints);
   SetLength(coef_l,MaxPoints);
-  ShowMessage('Memory allocated');
+  //ShowMessage('Memory allocated');
  {if not(test) then
   begin}
    Power_spektr:=3;  // какая-то степень, или мощность, сильно похоже на кол-во типов носителей
@@ -471,18 +475,18 @@ begin
 
    Gxx.Clear; // чистим графики компонент
    Gxy.Clear;
-   ShowMessage('Goodbye gauss and gram!');
+  // ShowMessage('Goodbye gauss and gram!');
 
    if a then
      begin
 
-      ShowMessage('AddExpPoints');
+   //   ShowMessage('AddExpPoints');
       AddExpPoints(ExpXX,ExpXY); // добавляет точки на график, экспериментальные
-      ShowMessage('GetLnLimits');
+   //   ShowMessage('GetLnLimits');
       GetLnLimits(Lmin,Lmax); // получает пределы, логарифмические
       SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt; // считаем размер данных
       InitArray;  // выделяем его---------------------------------------------------------------
-      ShowMessage('After init array in MakeMNK');
+   //   ShowMessage('After init array in MakeMNK');
       k:=0;
       for i:=0 to (lmax-lmin) do
        begin
@@ -886,7 +890,7 @@ var
 
 
 begin
-  ShowMessage('Inside MobilitySpectrum');
+ // ShowMessage('Inside MobilitySpectrum');
    for i:=0 to NumberOfPoints do
     begin
      B_spektr[i+1]:=MagField_spektr[i];
@@ -894,9 +898,9 @@ begin
      Gxy_sp[i+1]:=GxyExp[i];
     end;
    inc(NumberOfPoints);
-   ShowMessage('Run MakeMatrC');
+  // ShowMessage('Run MakeMatrC');
    MakeMatrC;
-   ShowMessage('RunInverseMatcC');
+  // ShowMessage('RunInverseMatcC');
    InverseMatrC(Cr,Cr_t,Sf,NumberOfPoints);
    if Sf=0 then begin MessageDLG('Определитель равен нулю!',mtError,[mbOK],0);
          dec(NumberOfPoints);
@@ -915,12 +919,12 @@ begin
     end else
     InverseMatrC(Cl,Cl_t,Sf,NumberOfPoints);
 
-    ShowMessage('Run MakeMartA. Line 891');
+    //ShowMessage('Run MakeMartA. Line 891');
     MakeMatrA;
     // интересно что это за числа ниже?
-    ShowMessage('Run Tred2');
+    //ShowMessage('Run Tred2');
     Tred2(NumberOfPoints,6e-4913,Lv,Xv,am,Qm,bulua);
-    ShowMessage('Run Imtql2');
+    //ShowMessage('Run Imtql2');
     Imtql2(NumberOfPoints,5.42e-20,Lv,Xv,Qm,bulua);
 
      LineSeries1.Clear;
@@ -928,10 +932,10 @@ begin
    Lmin:=MSLeft;LMax:=MSRight;
    SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt; // возможно тут придется домножать на размер элемента
    // впрочем нет - там же сейчас другая функция.
-   ShowMessage('InitArray2');
+  // ShowMessage('InitArray2');
    InitArray2;
    k:=0;
-   ShowMessage('Last for...');
+  // ShowMessage('Last for...');
    for i:=0 to (lmax-lmin) do
     begin
      lm:=exp((lmin+i)*ln(10));
@@ -1137,41 +1141,89 @@ end;
 /////////////////////// КОНЕЦ "ХОЛЛ. ПОДВИЖНОСТЬ"///////////////////////////
 ////////////////////////////////////////////////////////////////////////////
 
-procedure getResults(var outElectronSpectrX,outElectronSpectrY,
-outHoleSpectrX,outHoleSpectrY: array of Extended);
+function getResultEY(i:Integer):Extended; stdcall;
+begin
+  Result:=electronMobilitySpectrum.YValue[i];
+end;
+
+function getResultEX(i:Integer):Extended; stdcall;
+begin
+  Result:=electronMobilitySpectrum.XValue[i];
+end;
+
+function getResultHY(i:Integer):Extended; stdcall;
+begin
+  Result:=holeMobilitySpectrum.YValue[i];
+end;
+
+function getResultHX(i:Integer):Extended; stdcall;
+begin
+  Result:=holeMobilitySpectrum.XValue[i];
+end;
+
+function getResults(var outElectronSpectrX,  outElectronSpectrY,
+outHoleSpectrX,outHoleSpectrY: Data_spektr): Pointer; stdcall;
 var i:Integer;
 begin
+  ShowMessage('Inside getResults. Count is '+ IntToStr(electronMobilitySpectrum.XValues.Count));
+
+  SetLength(outSpectrEX,electronMobilitySpectrum.XValues.Count);
+  SetLength(outSpectrEY,electronMobilitySpectrum.XValues.Count);
+  SetLength(outSpectrHX,electronMobilitySpectrum.XValues.Count);
+  SetLength(outSpectrHY,electronMobilitySpectrum.XValues.Count);
+  // Краш на 48 на 4м
+  for i:=0 to electronMobilitySpectrum.XValues.Count-1 do
+  begin
+   // ShowMessage(IntToStr(i));
+   // ShowMessage('1');
+  outSpectrEX[i]:=electronMobilitySpectrum.XValue[i];
+  //ShowMessage('2');
+  outSpectrEY[i]:=electronMobilitySpectrum.YValue[i];
+  //ShowMessage('3');
+  outSpectrHX[i]:=holeMobilitySpectrum.XValue[i];
+  //ShowMessage('4');
+  //ShowMessage(IntToStr(Length(outSpectrHY)));
+  outSpectrHY[i]:=holeMobilitySpectrum.YValue[i];
+  end;
+  Result:=@outSpectrEX;
+  {
   for i:=0 to electronMobilitySpectrum.XValues.Count do
   begin
-   outElectronSpectrX[i]:=electronMobilitySpectrum.XValue[i];
-   outElectronSpectrY[i]:=electronMobilitySpectrum.YValue[i];
+    ShowMessage('i='+IntToStr(i));
+
+    outElectronSpectrX[i]:=electronMobilitySpectrum.XValue[i];
+    ShowMessage('For Y');
+    outElectronSpectrY[i]:=electronMobilitySpectrum.YValue[i];
   end;
+  ShowMessage('Netx Part of getResults');
   for i:=0 to holeMobilitySpectrum.XValues.Count do
   begin
+    ShowMessage('write x');
    outHoleSpectrX[i]:=holeMobilitySpectrum.XValue[i];
+   ShowMessage('write y');
    outHoleSpectrY[i]:=holeMobilitySpectrum.YValue[i];
   end;
-
+   }
 end;  
 
 
 // входные параметры есть, надо подумать что мы возвращаем, где оно хранится
 // и как мы это будем возвращать.
-function RunMobilitySpectrum (MagneticFieldP,Exx,Exy: Data_spektr; size:ULONG ):Integer;
+function RunMobilitySpectrum (MagneticFieldP,Exx,Exy: Data_spektr; size:Integer ):Integer; stdcall;
 var i:Integer;
 Gxx,Gxy:TLineSeries;
 ExpXX,ExpXY:TPointSeries;
-
+//t:Int64;
 begin
 
   MaxPoints:=size;
-
+  ShowMessage(IntToStr(MaxPoints));
   if MaxPoints>1000 then
   MaxPoints:=11;
 
   NumberOfPoints:=MaxPoints-1;
 
-  ShowMessage(IntToStr(MaxPoints));
+  //ShowMessage(IntToStr(MaxPoints));
 
   SetLength(MagField_spektr,MaxPoints);
   SetLength(GxxExp,MaxPoints);
@@ -1221,12 +1273,7 @@ begin
   SetLength(Qm,MaxPoints+1,MaxPoints+1);
   SetLength(Cl,MaxPoints+1,MaxPoints+1);
   SetLength(Cr,MaxPoints+1,MaxPoints+1);
-  ShowMessage('One');
-  Cr[11,11]:=1;
-  ShowMessage('two');
-  Cr[0,1]:=1;
-  ShowMessage('many');
-  Cr[1,1]:=1;
+  
   SetLength(Cl_t,MaxPoints+1,MaxPoints+1);
   SetLength(Cr_t,MaxPoints+1,MaxPoints+1);
   SetLength(Cm,MaxPoints+1,MaxPoints+1);
@@ -1242,7 +1289,7 @@ begin
    }
 
 
-  ShowMessage('Memory allocated successfully');
+  //ShowMessage('Memory allocated successfully');
   
   for i:=0 to MaxPoints-1 do
   begin
@@ -1251,7 +1298,7 @@ begin
     GxyExp[i]:=Exy[i];
   end;
 
-  ShowMessage('Data has copied');
+  //ShowMessage('Data has copied');
 
   Gxx:=TLineSeries.Create(nil);
   Gxy:=TLineSeries.Create(nil);
@@ -1260,7 +1307,7 @@ begin
   electronMobilitySpectrum:=TLineSeries.Create(nil);
   holeMobilitySpectrum:=TLineSeries.Create(nil);
 
-  ShowMessage('Run MakeMNK');
+  //ShowMessage('Run MakeMNK');
 
   MakeMNK(true,Gxx,Gxy,ExpXX,ExpXY);
   ShowMessage('Run MobilitySpectrumFunc');
@@ -1314,7 +1361,7 @@ end;
 
 exports
 
-RunMobilitySpectrum,getResults;
+RunMobilitySpectrum,getResults,getResultEY,getResultEX,getResultHY,getResultHX;
 
 begin
 

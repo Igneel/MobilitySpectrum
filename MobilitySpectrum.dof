@@ -81,7 +81,7 @@ UnsafeCode=1
 UnsafeCast=1
 [Linker]
 MapFile=0
-OutputObjs=0
+OutputObjs=10
 ConsoleApp=1
 DebugInfo=0
 RemoteSymbols=0
