@@ -275,7 +275,8 @@ begin
 
    GetLnLimits(Lmin,Lmax);
    SizeData:=(Lmax-Lmin+1)*(PointPerInt-1)*PointPerInt;
-
+   // SizeData:=(Lmax-Lmin+1)*sizeof(ImageDat);
+   // Надо будет проверить и посмотреть кто прав.
    InitArray; 
    k:=0;
    for i:=0 to (lmax-lmin) do
@@ -369,6 +370,7 @@ begin
  end;
  for k:=0 to m do
  begin
+   r:=0;
   for j:=k to m do
   begin
   s:=0;
@@ -912,9 +914,9 @@ begin
        Series5.AddXY(Mobility[k],Spectr_p[k],'',clTeeColor);
        sf:=lm*exp(j/PointPerInt*ln(10));
        inc(k);
-       if sf>10 then break;
+      // if sf>10 then break;
       end;
-     if sf>10 then break;
+    // if sf>10 then break;
     end;
     GridPoints:=k-1;
    dec(NumberOfPoints);
@@ -937,7 +939,7 @@ end;
       В комментарии его.
 
 
-      }
+
 procedure chtSpectrClickSeries(chtSpectr: TCustomChart;
   Series: TChartSeries; ValueIndex: Integer;
   Shift: TShiftState; X, Y: Integer; Series5:TCustomSeries;
@@ -946,7 +948,7 @@ procedure chtSpectrClickSeries(chtSpectr: TCustomChart;
  //     Ind, Ind2:longint;
 
 
-begin
+begin  }
     {
 with chtSpectr do
    begin
@@ -977,9 +979,9 @@ with chtSpectr do
        else
          RowInFocus:=1;
       end;
-   end;   }
+   end;   
 
-end;
+end; }
 
 // Запись результатов Спектра подвижности
 // Количество точек
@@ -1032,13 +1034,12 @@ begin
   SetLength(GxyExp,MaxPoints);
 
   // из Спектра подвижности
+  // Оказывается эти две переменные... внезапно пределы расчета подвижности
+  // Ну т.е. их степени, типа 10^-2 и 10^1
+  // И кстати, надо сделать функцию для их изменения.
+  // Либо передавать их при вызове функции по расчету спектра.
   MSLeft:=-2;
   MSRight:=1;
-  Coef1:=2.1;
-  Coef2:=1.6;
-  Mu_min:=0.01;
-  Mu_max:=100;
-  Min_Spectr:=1e-4;
 
   SetLength(B_spektr,MaxPoints+1);
   SetLength(Gxx_sp,MaxPoints+1);
