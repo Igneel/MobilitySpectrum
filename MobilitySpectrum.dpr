@@ -30,11 +30,12 @@ uses
 
 
 
-{$R *.res}
+
 const
-  //MaxPoints=100;
+
   PointPerInt=50;
-  //MaxParameters=8;    // Максимальное число параметров
+
+  
 
 
   {  Mobility                         [ m**2/V*s ]     ;
@@ -43,7 +44,8 @@ const
       Surface Recombination Velocity   [ m/s ]          ;
       All other values in SI                             ;   }
   type
-    Data_spektr=array of extended;
+
+  Data_spektr=array of extended;
     
 
   ImageDat=array of extended;  // (PointPerInt-1)*PointPerInt
