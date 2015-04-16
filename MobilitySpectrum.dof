@@ -101,7 +101,7 @@ DebugSourceDirs=
 UsePackages=0
 [Parameters]
 RunParams=
-HostApplication=
+HostApplication=C:\Documents and Settings\Alex\Рабочий стол\MobilitySpectrum\Project1.exe
 Launcher=
 UseLauncher=0
 DebugCWD=

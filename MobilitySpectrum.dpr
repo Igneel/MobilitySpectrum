@@ -46,6 +46,8 @@ const
   type
 
   Data_spektr=array of extended;
+
+  PData_spektr = ^ Data_spektr;
     
 
   ImageDat=array of extended;  // (PointPerInt-1)*PointPerInt
@@ -59,13 +61,13 @@ const
     /////////////// спектр подвижности///////////
   NumberofPoints,Power_spektr,GridPoints :word;
   MagField_spektr,GxxExp,GxyExp  :Data_spektr;
-
-
-  //outSpectrEX,outSpectrEY,outSpectrHX,outSpectrHY:Data_spektr;
-
-  IntGxx,IntGxy,IntMagField,Spectr_e,Spectr_p,Mobility:ImageDat;
-  
-  QSpectr_e,QSpectr_p,Axx,Axy,Axx_d,Axy_d :PImageDat;
+ 
+  IntGxx:ImageDat;
+  IntGxy:ImageDat;
+  IntMagField:ImageDat;
+  Spectr_e:ImageDat;
+  Spectr_p:ImageDat;
+  Mobility:ImageDat;
 
   SizeData                               :longint;
   B_spektr,Gxx_sp,Gxx_MC,Gxy_MC,
@@ -123,10 +125,6 @@ begin
     Spectr_e:=nil;
     Spectr_p:=nil;
     Mobility:=nil;
-    Axx:=nil;
-    Axy:=nil;
-    Axx_d:=nil;
-    Axy_d:=nil;
   end;
 end;
 
@@ -301,23 +299,7 @@ begin
    
 end;
 
-
-procedure GetNoise(var a,b:Data_spektr;err:extended);
- var i:word;
-     t1,t2,v1,v2:extended;
- begin
-
-   randomize;
-   for i:=1 to NumberOfPoints do begin
-    t1:=random;
-    t2:=random;
-    v1:=sqrt(2*sqr(err)*ln(1/t2))*cos(2*pi*t1);
-    a[i]:=a[i]*(1+v1);
-    v2:=sqrt(2*sqr(err)*ln(1/t2))*cos(2*pi*t1);
-    b[i]:=b[i]*(1+v2);
-   end;
- end;
-
+ 
 procedure MakeMNK( a:boolean;Gxx:TLineSeries;Gxy:TLineSeries;ExpXX,ExpXY:TPointSeries);
 var tmp_m:mat;
     coef_t,coef_l:Data_spektr;
@@ -925,15 +907,6 @@ begin
 end;
 
 
-function GxxExpi:extended;
-var i:word;
-begin
-  Result:=0;
-  for i:=0 to gridPoints do
-   result:=result+Axx^[i]*(QSpectr_p^[i]+QSpectr_e^[i]);
-end;
-
-
     {
       Итак, по сути, здесь происходит тыканье значений максимумов и
       отображение их в таблице под графиком спектра подвижности.
@@ -1018,22 +991,35 @@ end;
 
 // входные параметры есть, надо подумать что мы возвращаем, где оно хранится
 // и как мы это будем возвращать.
-function RunMobilitySpectrum (MagneticFieldP,Exx,Exy: Data_spektr; size:Integer ):Integer; stdcall;
+function RunMobilitySpectrum (inMagneticFieldP,inExx,inExy :PData_spektr; size:Integer ):Integer; stdcall;
 var i:Integer;
 Gxx,Gxy:TLineSeries;
 ExpXX,ExpXY:TPointSeries;
+MagneticFieldP,Exx,Exy: Data_spektr;
 begin
 
   MaxPoints:=size;
+  
   //ShowMessage(IntToStr(MaxPoints));
   if MaxPoints>1000 then
   MaxPoints:=11;
 
   NumberOfPoints:=MaxPoints-1;
 
+  SetLength(MagneticFieldP,MaxPoints);
+  SetLength(Exx,MaxPoints);
+  SetLength(Exy,MaxPoints);
+
   SetLength(MagField_spektr,MaxPoints);
   SetLength(GxxExp,MaxPoints);
   SetLength(GxyExp,MaxPoints);
+
+  for i:=0 to NumberofPoints do
+  begin
+    MagneticFieldP[i]:=inMagneticFieldP^[i];
+    Exx[i]:=inExx^[i];
+    Exy[i]:=inExy^[i];
+  end;
 
   // из Спектра подвижности
   // Оказывается эти две переменные... внезапно пределы расчета подвижности
